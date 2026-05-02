@@ -15,8 +15,8 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var fill_color := Color(0.055, 0.075, 0.085, 1.0)
 @export var outline_color := Color(0.23, 0.38, 0.42, 0.7)
 @export var axis_color := Color(0.45, 0.78, 0.82, 0.95)
-@export var simple_lod_zoom := 0.55
-@export var overview_lod_zoom := 0.35
+@export var simple_lod_zoom := 0.75
+@export var overview_lod_zoom := 0.5
 @export var grid_visible := true:
 	set(value):
 		grid_visible = value
@@ -99,8 +99,8 @@ func _draw() -> void:
 		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 		return
 
-	_draw_overview_fill()
 	if not grid_visible:
+		_draw_axis_lines()
 		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 		return
 

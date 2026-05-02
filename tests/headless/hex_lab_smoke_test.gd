@@ -29,6 +29,9 @@ func _run() -> void:
 	)
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
 
+	camera.zoom = Vector2.ONE * 0.6
+	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom LOD")
+
 	camera.zoom = Vector2.ONE * 0.25
 	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom LOD")
 
