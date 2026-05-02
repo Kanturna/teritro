@@ -6,20 +6,24 @@ extends Node2D
 @export var zoom_max := 3.0
 @export var zoom_step_factor := 1.15
 @export var zoom_smoothing := 14.0
+@export var zoom_snap_tolerance := 0.005
 
 @onready var _renderer := $HexMapRenderer
 @onready var _camera: Camera2D = $Camera2D
+@onready var _debug_overlay: Node = $DebugOverlay
 @onready var _stats_label: Label = $HUD/StatsLabel
 
 var _target_zoom := 1.0
 var _middle_dragging := false
 var _last_camera_position := Vector2.INF
 var _last_camera_zoom := Vector2.INF
+var _last_renderer_lod := ""
 
 
 func _ready() -> void:
 	_camera.make_current()
 	_target_zoom = _camera.zoom.x
+	_debug_overlay.register_provider("renderer", _renderer)
 	_renderer.queue_redraw()
 
 
@@ -27,7 +31,9 @@ func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 	_smooth_zoom(delta)
 	_redraw_when_camera_changes()
-	_update_hud(delta)
+	var frame_ms := delta * 1000.0
+	_debug_overlay.sample_frame(frame_ms)
+	_update_hud(frame_ms)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -35,7 +41,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_mouse_button(event)
 	elif event is InputEventMouseMotion and _middle_dragging:
 		_camera.position -= event.relative / _camera.zoom
-		_renderer.queue_redraw()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_C:
 			_camera.position = Vector2.ZERO
@@ -44,6 +49,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_renderer.queue_redraw()
 		elif event.keycode == KEY_G:
 			_renderer.grid_visible = not _renderer.grid_visible
+		elif event.keycode == KEY_X:
+			_renderer.debug_axis_visible = not _renderer.debug_axis_visible
+		elif event.keycode == KEY_H:
+			_debug_overlay.toggle_detail_mode()
 
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
@@ -77,7 +86,9 @@ func _handle_keyboard_pan(delta: float) -> void:
 
 func _smooth_zoom(delta: float) -> void:
 	var current := _camera.zoom.x
-	if is_equal_approx(current, _target_zoom):
+	if absf(current - _target_zoom) <= zoom_snap_tolerance:
+		if not is_equal_approx(current, _target_zoom):
+			_camera.zoom = Vector2.ONE * _target_zoom
 		return
 
 	var weight := 1.0 - exp(-zoom_smoothing * delta)
@@ -90,29 +101,78 @@ func _set_target_zoom(value: float) -> void:
 
 
 func _redraw_when_camera_changes() -> void:
-	if _camera.position == _last_camera_position and _camera.zoom == _last_camera_zoom:
+	var current_lod: String = _renderer.get_current_lod_mode()
+	var lod_changed: bool = current_lod != _last_renderer_lod
+	if (
+		_camera.position == _last_camera_position
+		and _camera.zoom == _last_camera_zoom
+		and not lod_changed
+	):
 		return
+
 	_last_camera_position = _camera.position
 	_last_camera_zoom = _camera.zoom
-	_renderer.queue_redraw()
+	_last_renderer_lod = current_lod
+
+	if lod_changed or _renderer.needs_camera_redraw():
+		_renderer.queue_redraw()
 
 
-func _update_hud(delta: float) -> void:
-	var frame_ms := delta * 1000.0
-	var metrics: Dictionary = _renderer.get_debug_metrics()
+func _update_hud(frame_ms: float) -> void:
+	var metrics: Dictionary = _debug_overlay.get_provider_metrics("renderer")
+	var overlay_metrics: Dictionary = _debug_overlay.get_debug_metrics()
+	var frame_stats: Dictionary = overlay_metrics["frame_ms"]
+	var draw_stats: Dictionary = overlay_metrics["renderer_draw_ms"]
 	var grid_status := "off"
 	if metrics["grid_visible"]:
 		grid_status = "drawn" if metrics["cell_grid_drawn"] else "hidden by LOD"
 
-	_stats_label.text = (
+	var text := (
 		"Teritro Hex Lab\n"
 		+ "Radius: %d (%d cells)\n" % [_renderer.map_radius, _renderer.get_total_hex_count()]
 		+ "LOD: %s | Visible: %d | Drawn: %d\n"
 		% [metrics["lod"], metrics["visible"], metrics["drawn"]]
-		+ "Candidates: %d | Draw calls: %d | Draw: %.2f ms\n"
-		% [metrics["candidates"], metrics["draw_calls"], metrics["draw_ms"]]
-		+ "Zoom: %.2fx | Grid: %s\n" % [_camera.zoom.x, grid_status]
-		+ "FPS: %d / %.2f ms\n" % [Engine.get_frames_per_second(), frame_ms]
-		+ "WASD/Arrows pan | Shift fast | MMB drag\n"
-		+ "Mouse wheel zoom | G grid | C reset"
+		+ "Candidates: %d | Cull M/V: %d/%d | Lines: %d\n"
+		% [
+			metrics["candidates"],
+			metrics["culled_map"],
+			metrics["culled_view"],
+			metrics["line_points"],
+		]
+		+ "Draw calls: %d | Draw: %.2f ms | Submit: %.2f ms\n"
+		% [metrics["draw_calls"], metrics["draw_ms"], metrics["submit_ms"]]
+		+ "Zoom: %.2fx | Grid: %s | Axis: %s | HUD: %s\n"
+		% [
+			_camera.zoom.x,
+			grid_status,
+			"on" if metrics["debug_axis_visible"] else "off",
+			_debug_overlay.get_detail_mode_label(),
+		]
+		+ "FPS: %d / %.2f ms | 60f avg/max: %.2f/%.2f ms\n"
+		% [Engine.get_frames_per_second(), frame_ms, frame_stats["avg"], frame_stats["max"]]
 	)
+
+	if _debug_overlay.is_detailed():
+		text += (
+			"Phases: bounds %.2f | candidates %.2f | lines %.2f | submit %.2f\n"
+			% [
+				metrics["bounds_ms"],
+				metrics["candidate_ms"],
+				metrics["line_build_ms"],
+				metrics["submit_ms"],
+			]
+			+ "Draw 60f min/avg/max: %.2f / %.2f / %.2f ms | AA: %s\n"
+			% [
+				draw_stats["min"],
+				draw_stats["avg"],
+				draw_stats["max"],
+				"on" if metrics["grid_line_antialiased"] else "off",
+			]
+		)
+
+	text += (
+		"WASD/Arrows pan | Shift fast | MMB drag\n"
+		+ "Mouse wheel zoom | G grid | X axes | H HUD | C reset"
+	)
+
+	_stats_label.text = text

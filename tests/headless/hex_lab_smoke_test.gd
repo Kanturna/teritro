@@ -23,8 +23,8 @@ func _run() -> void:
 	_assert_eq(renderer.get_total_hex_count(), 19441, "radius 80 total hex count")
 	_assert_eq(renderer.get_child_count(), 0, "renderer does not create child nodes per hex")
 	_assert_true(
-		renderer.estimate_visible_hex_count() < 2500,
-		"default zoom visible hex count below 2500, got %d"
+		renderer.estimate_visible_hex_count() < 2800,
+		"default zoom visible hex count below 2800 with edge coverage, got %d"
 		% renderer.estimate_visible_hex_count()
 	)
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")

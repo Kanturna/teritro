@@ -92,3 +92,23 @@ read these metrics, but they must not own simulation truth.
 Re-evaluation trigger: Before adding a system that scans many cells, updates
 many agents, renders many elements, or runs every frame/tick without exposing a
 debug path.
+
+## ADR-007: Keep Procedural Renderer Short-Term With Metrics
+
+Decision: Slice 4 keeps the procedural hex renderer as the short-term renderer
+while adding phase metrics, local draw-path fixes, and a scene-local debug
+overlay.
+
+Reason: The current renderer is simple, replaceable, and sufficient for
+profiling the first map view. Replacing it before measuring would add
+architecture risk without proving which cost dominates.
+
+Implementation rule: Rendering may keep using `_draw()` for the lab scene, but
+must expose culling counts, line-point counts, phase timings, and frame-history
+metrics. DebugOverlay reads metrics through registered providers and does not
+own simulation truth.
+
+Re-evaluation trigger: Reassess the renderer before colony work if full-grid
+zoom 1.0 stays above 16 ms draw time, if simple/overview stays above 4 ms draw
+time, if ownership colors require per-cell rendering, or if map radius above 80
+becomes a product requirement.

@@ -17,6 +17,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var axis_color := Color(0.32, 0.60, 0.64, 0.45)
 @export var simple_lod_zoom := 0.75
 @export var overview_lod_zoom := 0.5
+@export var grid_line_antialiased := false
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -32,6 +33,7 @@ var _base_polygon := PackedVector2Array()
 var _map_outline_polygon := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
 var _grid_line_points := PackedVector2Array()
+var _visible_centers := PackedVector2Array()
 var _visible_corners: Array[Vector2] = []
 var _hexes: Array[Vector2i] = []
 var _visible_hex_count := 0
@@ -41,6 +43,11 @@ var _culled_by_map_count := 0
 var _culled_by_view_count := 0
 var _draw_call_estimate := 0
 var _draw_ms := 0.0
+var _bounds_ms := 0.0
+var _candidate_ms := 0.0
+var _line_build_ms := 0.0
+var _submit_ms := 0.0
+var _line_point_count := 0
 var _lod_mode := "full"
 var _cell_grid_drawn := false
 
@@ -69,9 +76,15 @@ func get_debug_metrics() -> Dictionary:
 		"culled_view": _culled_by_view_count,
 		"draw_calls": _draw_call_estimate,
 		"draw_ms": _draw_ms,
+		"bounds_ms": _bounds_ms,
+		"candidate_ms": _candidate_ms,
+		"line_build_ms": _line_build_ms,
+		"submit_ms": _submit_ms,
+		"line_points": _line_point_count,
 		"grid_visible": grid_visible,
 		"cell_grid_drawn": _cell_grid_drawn,
 		"debug_axis_visible": debug_axis_visible,
+		"grid_line_antialiased": grid_line_antialiased,
 	}
 
 
@@ -83,72 +96,87 @@ func will_draw_cell_grid() -> bool:
 	return grid_visible and get_current_lod_mode() == "full"
 
 
+func needs_camera_redraw() -> bool:
+	return will_draw_cell_grid()
+
+
 func estimate_visible_hex_count() -> int:
 	var count := 0
 	var bounds := _get_visible_axial_bounds()
-	var visible_rect := _get_visible_world_rect()
+	var visible_rect := _get_visible_local_rect()
 	for q in range(bounds.position.x, bounds.end.x + 1):
 		for r in range(bounds.position.y, bounds.end.y + 1):
 			var coord := Vector2i(q, r)
 			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
-			if _is_inside_map(coord) and visible_rect.has_point(to_global(center)):
+			if _is_inside_map(coord) and _hex_rect_intersects_view(center, visible_rect):
 				count += 1
 	return count
 
 
 func _draw() -> void:
 	var start_usec := Time.get_ticks_usec()
+	_reset_draw_metrics()
+	_lod_mode = _get_lod_for_zoom(_get_camera_zoom())
+
+	if _lod_mode == "overview":
+		var overview_submit_start := Time.get_ticks_usec()
+		_draw_overview_map()
+		_submit_ms = _elapsed_ms(overview_submit_start)
+		_draw_ms = _elapsed_ms(start_usec)
+		return
+
+	if _lod_mode == "simple":
+		var simple_submit_start := Time.get_ticks_usec()
+		_draw_simple_map()
+		_submit_ms = _elapsed_ms(simple_submit_start)
+		_draw_ms = _elapsed_ms(start_usec)
+		return
+
+	if not grid_visible:
+		var hidden_submit_start := Time.get_ticks_usec()
+		_draw_debug_axis_lines()
+		_submit_ms = _elapsed_ms(hidden_submit_start)
+		_draw_ms = _elapsed_ms(start_usec)
+		return
+
+	var bounds_start := Time.get_ticks_usec()
+	var bounds := _get_visible_axial_bounds()
+	var visible_rect := _get_visible_local_rect()
+	_bounds_ms = _elapsed_ms(bounds_start)
+
+	var candidate_start := Time.get_ticks_usec()
+	_collect_visible_centers(bounds, visible_rect)
+	_candidate_ms = _elapsed_ms(candidate_start)
+
+	var line_build_start := Time.get_ticks_usec()
+	_build_grid_lines_from_visible_centers()
+	_line_build_ms = _elapsed_ms(line_build_start)
+
+	var submit_start := Time.get_ticks_usec()
+	_draw_debug_axis_lines()
+	if _line_point_count > 0:
+		draw_multiline(_grid_line_points, outline_color, 1.0, grid_line_antialiased)
+		_draw_call_estimate += 1
+		_cell_grid_drawn = true
+	_submit_ms = _elapsed_ms(submit_start)
+
+	_draw_ms = _elapsed_ms(start_usec)
+
+
+func _reset_draw_metrics() -> void:
 	_visible_hex_count = 0
 	_drawn_hex_count = 0
 	_candidate_hex_count = 0
 	_culled_by_map_count = 0
 	_culled_by_view_count = 0
 	_draw_call_estimate = 0
+	_draw_ms = 0.0
+	_bounds_ms = 0.0
+	_candidate_ms = 0.0
+	_line_build_ms = 0.0
+	_submit_ms = 0.0
+	_line_point_count = 0
 	_cell_grid_drawn = false
-	_lod_mode = _get_lod_for_zoom(_get_camera_zoom())
-
-	if _lod_mode == "overview":
-		_draw_overview_map()
-		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
-		return
-
-	if _lod_mode == "simple":
-		_draw_simple_map()
-		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
-		return
-
-	if not grid_visible:
-		_draw_debug_axis_lines()
-		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
-		return
-
-	_draw_debug_axis_lines()
-	_grid_line_points.clear()
-
-	var bounds := _get_visible_axial_bounds()
-	var visible_rect := _get_visible_world_rect()
-
-	for q in range(bounds.position.x, bounds.end.x + 1):
-		for r in range(bounds.position.y, bounds.end.y + 1):
-			_candidate_hex_count += 1
-			var coord := Vector2i(q, r)
-			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
-			if not _is_inside_map(coord):
-				_culled_by_map_count += 1
-				continue
-			if not visible_rect.has_point(to_global(center)):
-				_culled_by_view_count += 1
-				continue
-			_append_hex_lines(center)
-			_visible_hex_count += 1
-			_drawn_hex_count += 1
-
-	if _grid_line_points.size() > 0:
-		draw_multiline(_grid_line_points, outline_color, 1.0, true)
-		_draw_call_estimate += 1
-		_cell_grid_drawn = true
-
-	_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 
 
 func _rebuild_map() -> void:
@@ -166,10 +194,44 @@ func _rebuild_polygon() -> void:
 		queue_redraw()
 
 
-func _append_hex_lines(center: Vector2) -> void:
-	var start_index := _grid_line_points.size()
-	_grid_line_points.resize(start_index + 12)
+func _collect_visible_centers(bounds: Rect2i, visible_rect: Rect2) -> void:
+	var q_count := bounds.end.x - bounds.position.x + 1
+	var r_count := bounds.end.y - bounds.position.y + 1
+	var max_candidate_count := maxi(0, q_count * r_count)
+	_visible_centers.resize(max_candidate_count)
 
+	var visible_index := 0
+	for q in range(bounds.position.x, bounds.end.x + 1):
+		for r in range(bounds.position.y, bounds.end.y + 1):
+			_candidate_hex_count += 1
+			var coord := Vector2i(q, r)
+			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
+			if not _is_inside_map(coord):
+				_culled_by_map_count += 1
+				continue
+			if not _hex_rect_intersects_view(center, visible_rect):
+				_culled_by_view_count += 1
+				continue
+
+			_visible_centers[visible_index] = center
+			visible_index += 1
+			_visible_hex_count += 1
+			_drawn_hex_count += 1
+
+	_visible_centers.resize(visible_index)
+
+
+func _build_grid_lines_from_visible_centers() -> void:
+	_line_point_count = _visible_centers.size() * 12
+	_grid_line_points.resize(_line_point_count)
+
+	var point_index := 0
+	for center in _visible_centers:
+		_write_hex_lines(center, point_index)
+		point_index += 12
+
+
+func _write_hex_lines(center: Vector2, start_index: int) -> void:
 	for i in range(6):
 		var point_a := center + _base_polygon[i]
 		var point_b := center + _base_polygon[(i + 1) % 6]
@@ -206,12 +268,17 @@ func _draw_debug_axis_lines() -> void:
 			HexGridMath.direction(direction_index) * map_radius,
 			hex_radius
 		)
-		draw_line(start, end, axis_color, 2.0, true)
+		draw_line(start, end, axis_color, 2.0, false)
 		_draw_call_estimate += 1
 
 
 func _is_inside_map(coord: Vector2i) -> bool:
 	return HexGridMath.distance(coord, Vector2i.ZERO) <= map_radius
+
+
+func _hex_rect_intersects_view(center: Vector2, visible_rect: Rect2) -> bool:
+	var hex_extent := Vector2.ONE * hex_radius
+	return Rect2(center - hex_extent, hex_extent * 2.0).intersects(visible_rect)
 
 
 func _build_hex_polygon_points() -> PackedVector2Array:
@@ -269,6 +336,23 @@ func _get_visible_world_rect() -> Rect2:
 	return Rect2(center - world_size * 0.5, world_size)
 
 
+func _get_visible_local_rect() -> Rect2:
+	var rect := _get_visible_world_rect()
+
+	_visible_corners[0] = to_local(rect.position)
+	_visible_corners[1] = to_local(rect.position + Vector2(rect.size.x, 0.0))
+	_visible_corners[2] = to_local(rect.position + rect.size)
+	_visible_corners[3] = to_local(rect.position + Vector2(0.0, rect.size.y))
+
+	var min_corner := _visible_corners[0]
+	var max_corner := _visible_corners[0]
+	for corner in _visible_corners:
+		min_corner = min_corner.min(corner)
+		max_corner = max_corner.max(corner)
+
+	return Rect2(min_corner, max_corner - min_corner)
+
+
 func _get_visible_axial_bounds() -> Rect2i:
 	var rect := _get_visible_world_rect()
 
@@ -298,3 +382,7 @@ func _get_visible_axial_bounds() -> Rect2i:
 		Vector2i(min_q, min_r),
 		Vector2i(max_q - min_q, max_r - min_r)
 	)
+
+
+func _elapsed_ms(start_usec: int) -> float:
+	return float(Time.get_ticks_usec() - start_usec) / 1000.0

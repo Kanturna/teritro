@@ -8,14 +8,14 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 3 - Grid, Camera & Visual Prototype Foundation v0.1
+Slice 4 - Renderer Profiling & Debug Foundation v0.1
 
 ## Implemented (this slice)
 
-Phase 2 started. Added axial hex math, a procedural hex lab scene, a smooth
-Camera2D controller, viewport-culling renderer, HUD/debug readout, and headless
-hex-math tests. No colony, ownership, expansion, or simulation rules beyond
-generic hex math.
+Added a scene-local DebugOverlay provider contract, renderer phase metrics,
+60-frame HUD history, axis/HUD toggles, and local `_draw()` optimizations for
+the procedural hex renderer. No colony, ownership, expansion, or simulation
+rules beyond generic hex math.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -24,19 +24,21 @@ changes, remove old slice contents instead of growing this file into history.
 
 - Colony spawn, ownership, expansion, Turn-Rule validation, and enclosure-fill.
 - AI, units, combat, economy, balancing, and beauty/shader polish.
+- Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - Hooks, automations, feature branches, pushes, or PRs.
 
 ## Out of Scope
 
-- Colony, territory ownership, AI, combat, economy, and final balancing rules
-- Enclosure-fill and contested-border semantics
-- New external assets or addons
-- Hooks, automations, feature branches, pushes, PRs
+- Colony, territory ownership, AI, combat, economy, and final balancing rules.
+- Enclosure-fill and contested-border semantics.
+- New external assets or addons.
+- Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
+- Hooks, automations, feature branches, pushes, PRs.
 
 ## Validation
 
-Godot/headless checks are required for Slice 3 because runtime files changed.
-Manual visual/performance checks remain a review gate.
+Godot/headless checks are required for Slice 4 because runtime files changed.
+Manual visual/performance checks in the Godot editor remain a review gate.
 
 ## State Rule
 

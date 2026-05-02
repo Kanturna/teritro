@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://4j0r413emeui" path="res://src/scenes/hex_lab.gd" id="1_hex_lab"]
 [ext_resource type="Script" uid="uid://dt3yd8hfkti5t" path="res://src/rendering/hex_map_renderer.gd" id="2_hex_renderer"]
+[ext_resource type="Script" path="res://src/debug/debug_overlay.gd" id="3_debug_overlay"]
 
 [node name="HexLab" type="Node2D" unique_id=2014589119]
 script = ExtResource("1_hex_lab")
@@ -11,13 +12,16 @@ script = ExtResource("2_hex_renderer")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=745197993]
 
+[node name="DebugOverlay" type="Node" parent="." unique_id=2082270684]
+script = ExtResource("3_debug_overlay")
+
 [node name="HUD" type="CanvasLayer" parent="." unique_id=2057813973]
 
 [node name="StatsLabel" type="Label" parent="HUD" unique_id=245832631]
 offset_left = 12.0
 offset_top = 12.0
-offset_right = 460.0
-offset_bottom = 160.0
+offset_right = 700.0
+offset_bottom = 260.0
 theme_override_colors/font_color = Color(0.84, 0.93, 0.92, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.75)
 theme_override_constants/shadow_offset_x = 1

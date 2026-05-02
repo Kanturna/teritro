@@ -21,14 +21,14 @@ a loose backlog.
   validate renderer frame-time and visible-cell culling on target hardware.
 - Before visual polish, evaluate whether procedural vectors, TileMapLayer,
   MultiMesh, shaders, or another renderer should own the beauty layer.
-- Before committing visual sign-off for Slice 3, manually check the lab scene
-  for crisp zoom, camera controls, readable HUD, and frame-time gates.
+- Before closing renderer sign-off for Slice 4, manually record lab scene
+  metrics at zoom 1.0, 0.6, and 0.25 in the Godot editor.
 - Before adding any scan, AI, unit, economy, or renderer subsystem, define the
   debug metrics and test parameters that reveal its bottlenecks.
-- Before the first colony prototype, decide whether the current `_draw()` grid
-  renderer is acceptable after LOD cleanup or needs a dedicated performance
-  slice using cached chunks, shader grid, TileMapLayer, MultiMesh, or another
-  visual-only renderer.
+- Before the first colony prototype, decide from Slice 4 measurements whether
+  the current `_draw()` grid renderer is acceptable or whether MultiMesh,
+  shader grid, TileMapLayer, chunks, or another visual-only renderer must come
+  first.
 
 ## Resolved Findings
 
@@ -49,3 +49,12 @@ a loose backlog.
   modes can hide the cell grid when it becomes noise.
 - Hid debug axes by default, muted grid colors, and made simple/overview LOD
   hide per-cell grid lines instead of drawing thousands of low-value edges.
+
+### 2026-05-03 - Slice 4 renderer profiling
+
+- Added a scene-local DebugOverlay provider contract and renderer phase metrics.
+- Removed per-visible-hex `PackedVector2Array.resize()` from the full-grid draw
+  path.
+- Made grid-line antialiasing a performance switch and defaulted it off.
+- Added HUD detail, debug-axis, culling, line-point, and 60-frame draw/frame
+  metrics for manual renderer review.
