@@ -95,6 +95,12 @@ choose one action: `accept`, `reject with reason`, `defer with reason`, or
 `document`. Slice 1 uses this light form; priority-heavy P0/P1/P2 handling can
 be added later if regular cross-reviews justify it.
 
+Low-risk qualitative findings should be accepted by default when they stay
+inside the current slice scope, add no new dependency, do not change unresolved
+architecture or gameplay decisions, are quick to validate, and reduce drift,
+ambiguity, duplication, or future cleanup cost. If such a finding is not
+implemented, state the deferral reason explicitly.
+
 ## Reframe Rule
 
 If an agent sees that a request is wrongly framed, too broad, too narrow, or not
