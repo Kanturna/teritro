@@ -40,6 +40,11 @@ work to reduce slice count.
 Every completed slice needs a suggested commit. Do not create the commit unless
 the user explicitly asks.
 
+Before suggesting a commit, run `git status --short` and inspect the relevant
+open diff. The suggested title and body must describe only the currently
+uncommitted changes, not earlier plans, already committed work, or remembered
+scope. If the tree is clean, say that no commit is currently needed.
+
 Title format:
 
 ```text

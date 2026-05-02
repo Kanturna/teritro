@@ -28,6 +28,7 @@ Read context docs only when relevant:
 - Work in coherent slices: reviewable, bounded, and validated together.
 - Do not commit, push, or open PRs unless the user explicitly asks.
 - After each completed slice, provide a completion report and suggested commit.
+- Base suggested commits on the current open `git status`/diff, not memory.
 - Never invent test results, file contents, repo facts, or validation outcomes.
 
 ## Completion Report
@@ -40,8 +41,8 @@ Every completed slice must include:
 - Documentation sync
 - Risks / follow-up
 - Review handoff stance
-- Suggested commit title
-- Suggested commit body
+- Suggested commit title matching the current open diff
+- Suggested commit body matching the current open diff
 
 ## Router Rule
 
