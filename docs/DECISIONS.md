@@ -46,3 +46,33 @@ once runtime code depends on them.
 
 Re-evaluation trigger: Before adding another external addon or binding
 simulation behavior to an addon API.
+
+## ADR-004: First Prototype Uses A Custom Procedural Hex Renderer
+
+Decision: Slice 3 uses a custom procedural vector renderer for the first hexmap
+lab instead of TileMapLayer or an external hex addon.
+
+Reason: Vector rendering keeps early zooming crisp, and custom code keeps the
+hex simulation math independent from Godot tile APIs while the core model is
+still forming.
+
+Implementation rule: Simulation and core math store axial coordinates, not tile
+indices. Renderer choice remains replaceable; TileMapLayer is not excluded from
+future rendering work.
+
+Re-evaluation trigger: Reassess if map radius exceeds 200, default-zoom
+frame-time exceeds 16 ms, min-zoom frame-time exceeds 33 ms, or a later beauty
+layer needs a different renderer.
+
+## ADR-005: Solo-Main Flow Until Collaboration Requires Branching
+
+Decision: Teritro uses direct commits on `main` for solo development.
+
+Reason: The project currently has one active developer and frequent small
+slices. Feature branches would add process overhead before they provide value.
+
+Implementation rule: Commit reviewed slices directly to `main`. Do not push or
+open PRs unless the user explicitly asks.
+
+Re-evaluation trigger: Reassess when a second active developer joins, when PR
+review becomes useful, or before any release workflow needs protected branches.

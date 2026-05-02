@@ -13,6 +13,12 @@ Domain guidance authority: `DECISIONS.md > ARCHITECTURE.md >
 SIMULATION_CONCEPTS.md > VISION.md > FINDINGS.md`. `STATUS.md` and
 `NEXT_STEPS.md` describe current work; they do not rewrite domain decisions.
 
+Phases are broad project sections. Phase changes must be declared in
+`STATUS.md` and justified by the slice plan that triggers the change.
+
+Branching defaults to solo-main flow until `DECISIONS.md` or a later workflow
+slice changes it.
+
 ## Start Protocol
 
 Before non-trivial work:
@@ -93,7 +99,8 @@ be added later if regular cross-reviews justify it.
 
 If an agent sees that a request is wrongly framed, too broad, too narrow, or not
 verifiable, stop with stance `needs_user`. Provide a concrete reframe proposal
-with Goal, Anchor Question, and Constraints.
+with Goal, Anchor Question, and Constraints. `needs_user` is a reframe-only
+stance, separate from review handoff labels.
 
 ## Response Discipline
 

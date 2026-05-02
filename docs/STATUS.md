@@ -4,38 +4,39 @@
 
 ## Active Phase
 
-Phase 1 - Meta Planning
+Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 2 - Vision & ARCHITECTURE Direction v0.1
+Slice 3 - Grid, Camera & Visual Prototype Foundation v0.1
 
 ## Implemented (this slice)
 
-Vision, architecture direction, simulation concepts, decisions, and findings
-documents created. No gameplay, simulation, runtime, or Godot code changes.
+Phase 2 started. Added axial hex math, a procedural hex lab scene, a smooth
+Camera2D controller, viewport-culling renderer, HUD/debug readout, and headless
+hex-math tests. No colony, ownership, expansion, or simulation rules beyond
+generic hex math.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
 
 ## Not Implemented
 
-- Grid, colony, expansion, enclosure, AI, combat, economy, and rendering code.
-- Hooks, branch strategy, scenes, resources, or runtime validation.
-- Final balancing or implementation-level simulation rules.
+- Colony spawn, ownership, expansion, Turn-Rule validation, and enclosure-fill.
+- AI, units, combat, economy, balancing, and beauty/shader polish.
+- Hooks, automations, feature branches, pushes, or PRs.
 
 ## Out of Scope
 
-- Godot runtime files, scenes, resources, and addons
-- Final combat, economy, AI, and balancing rules
-- Grid, colony, enclosure, rendering, and unit implementation
-- Godot scene or script structure
-- Hooks, branch strategy, pushes, PRs
+- Colony, territory ownership, AI, combat, economy, and final balancing rules
+- Enclosure-fill and contested-border semantics
+- New external assets or addons
+- Hooks, automations, feature branches, pushes, PRs
 
 ## Validation
 
-Markdown/manual documentation review only. No Godot run is needed because Slice
-2 does not change runtime files.
+Godot/headless checks are required for Slice 3 because runtime files changed.
+Manual visual/performance checks remain a review gate.
 
 ## State Rule
 

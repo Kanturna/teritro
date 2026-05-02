@@ -5,33 +5,34 @@ every idea.
 
 ## Current Slice
 
-Slice 2 - Vision & ARCHITECTURE Direction v0.1
+Slice 3 - Grid, Camera & Visual Prototype Foundation v0.1
 
-## Slice 2 Exit Criteria
+## Slice 3 Exit Criteria
 
-- `docs/VISION.md`, `docs/ARCHITECTURE.md`, `docs/SIMULATION_CONCEPTS.md`,
-  `docs/DECISIONS.md`, and `docs/FINDINGS.md` exist.
-- Vision and ARCHITECTURE direction are documented without runtime code.
-- The Turn-Rule is described as adjacent placement with no straight continuation.
-- No final combat, economy, AI, balancing, or implementation rules are added.
-- `AGENTS.md` stays under 80 lines and remains a router.
-- Claude Code can review the result with concrete checks.
+- Phase 2 is declared in `docs/STATUS.md`.
+- Axial hex math supports directions, neighbors, distance, radius counts, rings,
+  and pointy-top world conversion.
+- A Godot lab scene displays a radius-80 procedural hex map.
+- Camera supports WASD/arrows, Shift fast pan, middle-mouse drag, smooth wheel
+  zoom, and `C` reset.
+- Renderer uses viewport culling, no node per hex, and avoids per-frame
+  PackedArray allocation in `_draw()`.
+- HUD reports radius, total cells, visible cells, zoom, FPS, and frame time.
+- Headless hex-math tests pass.
 
-## Until Slice 3
+## Branching
 
-Commit suggestions are manual at the end of each slice. They are not automatic
-hooks yet.
+Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
+second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 3 - Tooling and Automation Plan v0.1
+## Proposed Slice 4 - First Colony & Turn-Rule Prototype v0.1
+
+- Add one visible test colony and starter cell.
+- Add minimal colony state and ownership, still separated from rendering.
+- Implement Turn-Rule validation only after no-valid-neighbor behavior is
+  decided.
+
+## Proposed Later Meta Slice - Tooling and Automation Plan
 
 - Check whether Claude-Code hooks, commit reminders, pre-commit checks, or
-  branch strategy rules are technically useful and available.
-- Decide branch strategy before the first push.
-- Clarify whether `needs_user` is a reframe-only stance or a workflow label.
-
-## Proposed Slice 4 - First Technical Prototype v0.1
-
-- Build the smallest Godot lab that can display a hex map and one test colony.
-- Implement only the minimum grid, colony state, and Turn-Rule validation needed
-  for a visible prototype.
-- Treat no-valid-neighbor behavior as a hard gate before implementation.
+  branch strategy rules are technically useful.
