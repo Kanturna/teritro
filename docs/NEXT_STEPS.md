@@ -33,6 +33,7 @@ second active developer joins or PR review becomes necessary.
   decided.
 - Define debug metrics for colony count, valid candidates, rejected candidates,
   and placement validation cost before expanding the prototype.
+- Keep grid visibility as a debug/view option, not simulation truth.
 
 ## Proposed Later Meta Slice - Tooling and Automation Plan
 

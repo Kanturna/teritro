@@ -32,6 +32,9 @@ func _run() -> void:
 	camera.zoom = Vector2.ONE * 0.25
 	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom LOD")
 
+	renderer.grid_visible = false
+	_assert_eq(renderer.get_debug_metrics()["grid_visible"], false, "grid visibility toggle off")
+
 	if _failures.is_empty():
 		print("Hex lab smoke tests passed.")
 		quit(0)

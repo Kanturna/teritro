@@ -41,3 +41,5 @@ a loose backlog.
   for re-evaluation.
 - Added renderer LOD and HUD metrics after min-zoom rendering exposed a
   bottleneck risk.
+- Added `G` as a grid visibility toggle so low-zoom views and later visual
+  modes can hide the cell grid when it becomes noise.

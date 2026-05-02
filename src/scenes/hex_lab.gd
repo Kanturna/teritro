@@ -42,6 +42,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_target_zoom = 1.0
 			_camera.zoom = Vector2.ONE
 			_renderer.queue_redraw()
+		elif event.keycode == KEY_G:
+			_renderer.grid_visible = not _renderer.grid_visible
 
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
@@ -105,8 +107,8 @@ func _update_hud(delta: float) -> void:
 		% [metrics["lod"], metrics["visible"], metrics["drawn"]]
 		+ "Candidates: %d | Draw calls: %d | Draw: %.2f ms\n"
 		% [metrics["candidates"], metrics["draw_calls"], metrics["draw_ms"]]
-		+ "Zoom: %.2fx\n" % _camera.zoom.x
+		+ "Zoom: %.2fx | Grid: %s\n" % [_camera.zoom.x, "on" if metrics["grid_visible"] else "off"]
 		+ "FPS: %d / %.2f ms\n" % [Engine.get_frames_per_second(), frame_ms]
 		+ "WASD/Arrows pan | Shift fast | MMB drag\n"
-		+ "Mouse wheel zoom | C reset"
+		+ "Mouse wheel zoom | G grid | C reset"
 	)

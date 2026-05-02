@@ -17,10 +17,16 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var axis_color := Color(0.45, 0.78, 0.82, 0.95)
 @export var simple_lod_zoom := 0.55
 @export var overview_lod_zoom := 0.35
+@export var grid_visible := true:
+	set(value):
+		grid_visible = value
+		if is_inside_tree():
+			queue_redraw()
 
 var _base_polygon := PackedVector2Array()
 var _map_outline_polygon := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
+var _grid_line_points := PackedVector2Array()
 var _visible_corners: Array[Vector2] = []
 var _hexes: Array[Vector2i] = []
 var _visible_hex_count := 0
@@ -57,6 +63,7 @@ func get_debug_metrics() -> Dictionary:
 		"culled_view": _culled_by_view_count,
 		"draw_calls": _draw_call_estimate,
 		"draw_ms": _draw_ms,
+		"grid_visible": grid_visible,
 	}
 
 
@@ -89,11 +96,17 @@ func _draw() -> void:
 
 	if _lod_mode == "overview":
 		_draw_overview_map()
-		_visible_hex_count = estimate_visible_hex_count()
 		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 		return
 
-	var draw_outlines := _lod_mode == "full"
+	_draw_overview_fill()
+	if not grid_visible:
+		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
+		return
+
+	_draw_axis_lines()
+	_grid_line_points.clear()
+
 	var bounds := _get_visible_axial_bounds()
 	var visible_rect := _get_visible_world_rect()
 
@@ -108,9 +121,13 @@ func _draw() -> void:
 			if not visible_rect.has_point(to_global(center)):
 				_culled_by_view_count += 1
 				continue
-			_draw_hex(coord, center, draw_outlines)
+			_append_hex_lines(center)
 			_visible_hex_count += 1
 			_drawn_hex_count += 1
+
+	if _grid_line_points.size() > 0:
+		draw_multiline(_grid_line_points, outline_color, 1.0, true)
+		_draw_call_estimate += 1
 
 	_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 
@@ -130,32 +147,30 @@ func _rebuild_polygon() -> void:
 		queue_redraw()
 
 
-func _draw_hex(coord: Vector2i, center: Vector2, draw_outlines: bool) -> void:
+func _append_hex_lines(center: Vector2) -> void:
+	var start_index := _grid_line_points.size()
+	_grid_line_points.resize(start_index + 12)
+
 	for i in range(6):
-		_scratch_polygon[i] = center + _base_polygon[i]
-
-	var color := fill_color
-	if coord.x == 0 or coord.y == 0 or coord.x + coord.y == 0:
-		color = fill_color.lerp(axis_color, 0.18)
-
-	draw_colored_polygon(_scratch_polygon, color)
-	_draw_call_estimate += 1
-	if draw_outlines:
-		for i in range(6):
-			draw_line(
-				_scratch_polygon[i],
-				_scratch_polygon[(i + 1) % 6],
-				outline_color,
-				1.0,
-				true
-			)
-			_draw_call_estimate += 1
+		var point_a := center + _base_polygon[i]
+		var point_b := center + _base_polygon[(i + 1) % 6]
+		var point_index := start_index + i * 2
+		_grid_line_points[point_index] = point_a
+		_grid_line_points[point_index + 1] = point_b
 
 
 func _draw_overview_map() -> void:
+	_draw_overview_fill()
+	if grid_visible:
+		_draw_axis_lines()
+
+
+func _draw_overview_fill() -> void:
 	draw_colored_polygon(_map_outline_polygon, fill_color)
 	_draw_call_estimate += 1
 
+
+func _draw_axis_lines() -> void:
 	for direction_index in [0, 1, 2]:
 		var start: Vector2 = HexGridMath.axial_to_world(
 			HexGridMath.direction(direction_index + 3) * map_radius,
