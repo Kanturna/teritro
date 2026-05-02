@@ -12,9 +12,9 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 		hex_radius = max(value, 1.0)
 		_rebuild_polygon()
 @export var cull_padding_hexes := 3
-@export var fill_color := Color(0.045, 0.055, 0.058, 1.0)
-@export var outline_color := Color(0.12, 0.27, 0.30, 0.5)
-@export var axis_color := Color(0.32, 0.60, 0.64, 0.45)
+@export var fill_color := Color.WHITE
+@export var outline_color := Color(0.02, 0.02, 0.02, 0.9)
+@export var axis_color := Color(0.0, 0.0, 0.0, 0.35)
 @export var simple_lod_zoom := 0.75
 @export var overview_lod_zoom := 0.5
 @export var grid_line_antialiased := false
