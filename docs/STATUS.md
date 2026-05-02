@@ -8,32 +8,34 @@ Phase 1 - Meta Planning
 
 ## Active Slice
 
-Slice 1 - Project Operating Contract v0.1
+Slice 2 - Vision & ARCHITECTURE Direction v0.1
 
 ## Implemented (this slice)
 
-Documentation contract created. No gameplay, simulation, runtime, or Godot code
-changes.
+Vision, architecture direction, simulation concepts, decisions, and findings
+documents created. No gameplay, simulation, runtime, or Godot code changes.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
 
 ## Not Implemented
 
-See `Out of Scope`.
+- Grid, colony, expansion, enclosure, AI, combat, economy, and rendering code.
+- Hooks, branch strategy, scenes, resources, or runtime validation.
+- Final balancing or implementation-level simulation rules.
 
 ## Out of Scope
 
-- Territory rules
-- Grid, cells, colonies, energy, rendering, balancing
-- Simulation architecture
+- Godot runtime files, scenes, resources, and addons
+- Final combat, economy, AI, and balancing rules
+- Grid, colony, enclosure, rendering, and unit implementation
 - Godot scene or script structure
 - Hooks, branch strategy, pushes, PRs
 
 ## Validation
 
-Markdown/manual documentation review only. No Godot run is needed because this
-slice does not change runtime files.
+Markdown/manual documentation review only. No Godot run is needed because Slice
+2 does not change runtime files.
 
 ## State Rule
 

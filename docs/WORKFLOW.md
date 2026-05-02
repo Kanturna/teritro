@@ -9,6 +9,10 @@ validation duties, and review handoff rules. Future architecture docs may own
 architecture, layer, or service conflicts, but must not bypass safety, Git, or
 review rules. Changing an `AGENTS.md` rule requires its own slice.
 
+Domain guidance authority: `DECISIONS.md > ARCHITECTURE.md >
+SIMULATION_CONCEPTS.md > VISION.md > FINDINGS.md`. `STATUS.md` and
+`NEXT_STEPS.md` describe current work; they do not rewrite domain decisions.
+
 ## Start Protocol
 
 Before non-trivial work:

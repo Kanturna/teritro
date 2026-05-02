@@ -13,6 +13,14 @@ Before non-trivial work, read:
 3. `docs/WORKFLOW.md`
 4. `docs/AGENT_ROLES.md` when coordinating agents, handoffs, or reviews
 
+Read context docs only when relevant:
+
+- `docs/VISION.md` for product direction, design pillars, or long-term scope.
+- `docs/ARCHITECTURE.md` for layers, ownership, services, or adapters.
+- `docs/SIMULATION_CONCEPTS.md` for simulation vocabulary or concept changes.
+- `docs/DECISIONS.md` before changing documented decisions.
+- `docs/FINDINGS.md` when handling known risks, reviews, or open triggers.
+
 ## Core Rules
 
 - Respect the active phase and active slice in `docs/STATUS.md`.
@@ -36,6 +44,9 @@ Every completed slice must include:
 - Suggested commit body
 
 ## Router Rule
+
+`AGENTS.md` keeps authority over safety, Git/commit permissions, validation
+duties, and review handoff rules.
 
 If these instructions conflict with detailed workflow docs, follow
 `docs/WORKFLOW.md` only where it is more specific and does not weaken safety,
