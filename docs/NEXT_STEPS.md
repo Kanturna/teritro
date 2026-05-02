@@ -25,7 +25,18 @@ Slice 3 - Grid, Camera & Visual Prototype Foundation v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 4 - First Colony & Turn-Rule Prototype v0.1
+## Proposed Slice 4 - Renderer Performance & Debug Foundation v0.1
+
+- Profile the current `_draw()` renderer at zoom 0.25, 0.5, 1.0, and during
+  camera movement.
+- Decide whether the short-term renderer remains procedural `_draw()` or moves
+  to cached chunks, shader grid, TileMapLayer, MultiMesh, or another visual-only
+  renderer.
+- Define a reusable debug metrics contract for expensive systems before adding
+  colony expansion, scans, AI, units, or combat.
+- Keep grid visibility as a debug/view option, not simulation truth.
+
+## Proposed Slice 5 - First Colony & Turn-Rule Prototype v0.1
 
 - Add one visible test colony and starter cell.
 - Add minimal colony state and ownership, still separated from rendering.

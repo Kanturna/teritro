@@ -12,11 +12,16 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 		hex_radius = max(value, 1.0)
 		_rebuild_polygon()
 @export var cull_padding_hexes := 3
-@export var fill_color := Color(0.055, 0.075, 0.085, 1.0)
-@export var outline_color := Color(0.23, 0.38, 0.42, 0.7)
-@export var axis_color := Color(0.45, 0.78, 0.82, 0.95)
+@export var fill_color := Color(0.045, 0.055, 0.058, 1.0)
+@export var outline_color := Color(0.12, 0.27, 0.30, 0.5)
+@export var axis_color := Color(0.32, 0.60, 0.64, 0.45)
 @export var simple_lod_zoom := 0.75
 @export var overview_lod_zoom := 0.5
+@export var debug_axis_visible := false:
+	set(value):
+		debug_axis_visible = value
+		if is_inside_tree():
+			queue_redraw()
 @export var grid_visible := true:
 	set(value):
 		grid_visible = value
@@ -37,6 +42,7 @@ var _culled_by_view_count := 0
 var _draw_call_estimate := 0
 var _draw_ms := 0.0
 var _lod_mode := "full"
+var _cell_grid_drawn := false
 
 
 func _ready() -> void:
@@ -64,11 +70,17 @@ func get_debug_metrics() -> Dictionary:
 		"draw_calls": _draw_call_estimate,
 		"draw_ms": _draw_ms,
 		"grid_visible": grid_visible,
+		"cell_grid_drawn": _cell_grid_drawn,
+		"debug_axis_visible": debug_axis_visible,
 	}
 
 
 func get_current_lod_mode() -> String:
 	return _get_lod_for_zoom(_get_camera_zoom())
+
+
+func will_draw_cell_grid() -> bool:
+	return grid_visible and get_current_lod_mode() == "full"
 
 
 func estimate_visible_hex_count() -> int:
@@ -92,6 +104,7 @@ func _draw() -> void:
 	_culled_by_map_count = 0
 	_culled_by_view_count = 0
 	_draw_call_estimate = 0
+	_cell_grid_drawn = false
 	_lod_mode = _get_lod_for_zoom(_get_camera_zoom())
 
 	if _lod_mode == "overview":
@@ -99,12 +112,17 @@ func _draw() -> void:
 		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 		return
 
-	if not grid_visible:
-		_draw_axis_lines()
+	if _lod_mode == "simple":
+		_draw_simple_map()
 		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 		return
 
-	_draw_axis_lines()
+	if not grid_visible:
+		_draw_debug_axis_lines()
+		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
+		return
+
+	_draw_debug_axis_lines()
 	_grid_line_points.clear()
 
 	var bounds := _get_visible_axial_bounds()
@@ -128,6 +146,7 @@ func _draw() -> void:
 	if _grid_line_points.size() > 0:
 		draw_multiline(_grid_line_points, outline_color, 1.0, true)
 		_draw_call_estimate += 1
+		_cell_grid_drawn = true
 
 	_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 
@@ -161,8 +180,12 @@ func _append_hex_lines(center: Vector2) -> void:
 
 func _draw_overview_map() -> void:
 	_draw_overview_fill()
-	if grid_visible:
-		_draw_axis_lines()
+	_draw_debug_axis_lines()
+
+
+func _draw_simple_map() -> void:
+	_draw_overview_fill()
+	_draw_debug_axis_lines()
 
 
 func _draw_overview_fill() -> void:
@@ -170,7 +193,10 @@ func _draw_overview_fill() -> void:
 	_draw_call_estimate += 1
 
 
-func _draw_axis_lines() -> void:
+func _draw_debug_axis_lines() -> void:
+	if not debug_axis_visible:
+		return
+
 	for direction_index in [0, 1, 2]:
 		var start: Vector2 = HexGridMath.axial_to_world(
 			HexGridMath.direction(direction_index + 3) * map_radius,

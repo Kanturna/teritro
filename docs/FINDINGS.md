@@ -25,6 +25,10 @@ a loose backlog.
   for crisp zoom, camera controls, readable HUD, and frame-time gates.
 - Before adding any scan, AI, unit, economy, or renderer subsystem, define the
   debug metrics and test parameters that reveal its bottlenecks.
+- Before the first colony prototype, decide whether the current `_draw()` grid
+  renderer is acceptable after LOD cleanup or needs a dedicated performance
+  slice using cached chunks, shader grid, TileMapLayer, MultiMesh, or another
+  visual-only renderer.
 
 ## Resolved Findings
 
@@ -43,3 +47,5 @@ a loose backlog.
   bottleneck risk.
 - Added `G` as a grid visibility toggle so low-zoom views and later visual
   modes can hide the cell grid when it becomes noise.
+- Hid debug axes by default, muted grid colors, and made simple/overview LOD
+  hide per-cell grid lines instead of drawing thousands of low-value edges.

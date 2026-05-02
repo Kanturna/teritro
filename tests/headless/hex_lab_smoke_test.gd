@@ -28,9 +28,12 @@ func _run() -> void:
 		% renderer.estimate_visible_hex_count()
 	)
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom draws cell grid")
+	_assert_eq(renderer.get_debug_metrics()["debug_axis_visible"], false, "debug axes hidden by default")
 
 	camera.zoom = Vector2.ONE * 0.6
 	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), false, "mid zoom hides cell grid by LOD")
 
 	camera.zoom = Vector2.ONE * 0.25
 	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom LOD")

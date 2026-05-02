@@ -20,6 +20,11 @@ config/icon="res://icon.svg"
 AntialiasedLine2DTexture="*uid://c214gop0gox8r"
 DebugMenu="*uid://cggqb75a8w8r"
 
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/antialiased_line2d/plugin.cfg", "res://addons/debug_menu/plugin.cfg")
