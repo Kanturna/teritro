@@ -27,6 +27,10 @@ func _run() -> void:
 		"default zoom visible hex count below 2500, got %d"
 		% renderer.estimate_visible_hex_count()
 	)
+	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
+
+	camera.zoom = Vector2.ONE * 0.25
+	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom LOD")
 
 	if _failures.is_empty():
 		print("Hex lab smoke tests passed.")

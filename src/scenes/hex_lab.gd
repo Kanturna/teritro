@@ -97,10 +97,14 @@ func _redraw_when_camera_changes() -> void:
 
 func _update_hud(delta: float) -> void:
 	var frame_ms := delta * 1000.0
+	var metrics: Dictionary = _renderer.get_debug_metrics()
 	_stats_label.text = (
 		"Teritro Hex Lab\n"
 		+ "Radius: %d (%d cells)\n" % [_renderer.map_radius, _renderer.get_total_hex_count()]
-		+ "Visible: %d\n" % _renderer.get_visible_hex_count()
+		+ "LOD: %s | Visible: %d | Drawn: %d\n"
+		% [metrics["lod"], metrics["visible"], metrics["drawn"]]
+		+ "Candidates: %d | Draw calls: %d | Draw: %.2f ms\n"
+		% [metrics["candidates"], metrics["draw_calls"], metrics["draw_ms"]]
 		+ "Zoom: %.2fx\n" % _camera.zoom.x
 		+ "FPS: %d / %.2f ms\n" % [Engine.get_frames_per_second(), frame_ms]
 		+ "WASD/Arrows pan | Shift fast | MMB drag\n"

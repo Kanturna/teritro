@@ -46,3 +46,18 @@ and presentation mode. Visual systems do not own or mutate simulation truth.
   ownership, colony, or territory vocabulary.
 - Existing addons are tooling or presentation candidates and should be reached
   through adapters before project code depends on them broadly.
+
+## Debuggability Contract
+
+Performance-sensitive systems must expose enough runtime metrics to identify
+bottlenecks before they become hidden architecture problems.
+
+At minimum, each such system should define:
+
+- the main tunable test parameters
+- the primary workload count, such as visible cells, active agents, or scan size
+- the measured frame or tick cost when practical
+- the fallback trigger for reducing quality, scale, or update frequency
+
+Debug output may live in HUDs, debug overlays, probes, or tests, but it must not
+own or mutate simulation truth.

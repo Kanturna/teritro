@@ -15,12 +15,22 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var fill_color := Color(0.055, 0.075, 0.085, 1.0)
 @export var outline_color := Color(0.23, 0.38, 0.42, 0.7)
 @export var axis_color := Color(0.45, 0.78, 0.82, 0.95)
+@export var simple_lod_zoom := 0.55
+@export var overview_lod_zoom := 0.35
 
 var _base_polygon := PackedVector2Array()
+var _map_outline_polygon := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
 var _visible_corners: Array[Vector2] = []
 var _hexes: Array[Vector2i] = []
 var _visible_hex_count := 0
+var _drawn_hex_count := 0
+var _candidate_hex_count := 0
+var _culled_by_map_count := 0
+var _culled_by_view_count := 0
+var _draw_call_estimate := 0
+var _draw_ms := 0.0
+var _lod_mode := "full"
 
 
 func _ready() -> void:
@@ -37,6 +47,23 @@ func get_visible_hex_count() -> int:
 	return _visible_hex_count
 
 
+func get_debug_metrics() -> Dictionary:
+	return {
+		"lod": _lod_mode,
+		"visible": _visible_hex_count,
+		"drawn": _drawn_hex_count,
+		"candidates": _candidate_hex_count,
+		"culled_map": _culled_by_map_count,
+		"culled_view": _culled_by_view_count,
+		"draw_calls": _draw_call_estimate,
+		"draw_ms": _draw_ms,
+	}
+
+
+func get_current_lod_mode() -> String:
+	return _get_lod_for_zoom(_get_camera_zoom())
+
+
 func estimate_visible_hex_count() -> int:
 	var count := 0
 	var bounds := _get_visible_axial_bounds()
@@ -51,36 +78,59 @@ func estimate_visible_hex_count() -> int:
 
 
 func _draw() -> void:
+	var start_usec := Time.get_ticks_usec()
 	_visible_hex_count = 0
+	_drawn_hex_count = 0
+	_candidate_hex_count = 0
+	_culled_by_map_count = 0
+	_culled_by_view_count = 0
+	_draw_call_estimate = 0
+	_lod_mode = _get_lod_for_zoom(_get_camera_zoom())
+
+	if _lod_mode == "overview":
+		_draw_overview_map()
+		_visible_hex_count = estimate_visible_hex_count()
+		_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
+		return
+
+	var draw_outlines := _lod_mode == "full"
 	var bounds := _get_visible_axial_bounds()
 	var visible_rect := _get_visible_world_rect()
 
 	for q in range(bounds.position.x, bounds.end.x + 1):
 		for r in range(bounds.position.y, bounds.end.y + 1):
+			_candidate_hex_count += 1
 			var coord := Vector2i(q, r)
 			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
 			if not _is_inside_map(coord):
+				_culled_by_map_count += 1
 				continue
 			if not visible_rect.has_point(to_global(center)):
+				_culled_by_view_count += 1
 				continue
-			_draw_hex(coord, center)
+			_draw_hex(coord, center, draw_outlines)
 			_visible_hex_count += 1
+			_drawn_hex_count += 1
+
+	_draw_ms = float(Time.get_ticks_usec() - start_usec) / 1000.0
 
 
 func _rebuild_map() -> void:
 	_hexes = HexGridMath.coords_in_radius(map_radius)
+	_map_outline_polygon = _build_map_outline_polygon()
 	if is_inside_tree():
 		queue_redraw()
 
 
 func _rebuild_polygon() -> void:
 	_base_polygon = _build_hex_polygon_points()
+	_map_outline_polygon = _build_map_outline_polygon()
 	_scratch_polygon.resize(6)
 	if is_inside_tree():
 		queue_redraw()
 
 
-func _draw_hex(coord: Vector2i, center: Vector2) -> void:
+func _draw_hex(coord: Vector2i, center: Vector2, draw_outlines: bool) -> void:
 	for i in range(6):
 		_scratch_polygon[i] = center + _base_polygon[i]
 
@@ -89,14 +139,34 @@ func _draw_hex(coord: Vector2i, center: Vector2) -> void:
 		color = fill_color.lerp(axis_color, 0.18)
 
 	draw_colored_polygon(_scratch_polygon, color)
-	for i in range(6):
-		draw_line(
-			_scratch_polygon[i],
-			_scratch_polygon[(i + 1) % 6],
-			outline_color,
-			1.0,
-			true
+	_draw_call_estimate += 1
+	if draw_outlines:
+		for i in range(6):
+			draw_line(
+				_scratch_polygon[i],
+				_scratch_polygon[(i + 1) % 6],
+				outline_color,
+				1.0,
+				true
+			)
+			_draw_call_estimate += 1
+
+
+func _draw_overview_map() -> void:
+	draw_colored_polygon(_map_outline_polygon, fill_color)
+	_draw_call_estimate += 1
+
+	for direction_index in [0, 1, 2]:
+		var start: Vector2 = HexGridMath.axial_to_world(
+			HexGridMath.direction(direction_index + 3) * map_radius,
+			hex_radius
 		)
+		var end: Vector2 = HexGridMath.axial_to_world(
+			HexGridMath.direction(direction_index) * map_radius,
+			hex_radius
+		)
+		draw_line(start, end, axis_color, 2.0, true)
+		_draw_call_estimate += 1
 
 
 func _is_inside_map(coord: Vector2i) -> bool:
@@ -110,6 +180,34 @@ func _build_hex_polygon_points() -> PackedVector2Array:
 		var angle := deg_to_rad(30.0 + 60.0 * float(i))
 		points[i] = Vector2(cos(angle), sin(angle)) * hex_radius
 	return points
+
+
+func _build_map_outline_polygon() -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(6)
+	var outline_radius := hex_radius * (float(map_radius) + 0.75)
+	for i in range(6):
+		var angle := deg_to_rad(30.0 + 60.0 * float(i))
+		points[i] = Vector2(cos(angle), sin(angle)) * outline_radius
+	return points
+
+
+func _get_camera_zoom() -> float:
+	var viewport := get_viewport()
+	if viewport == null:
+		return 1.0
+	var camera := viewport.get_camera_2d()
+	if camera == null:
+		return 1.0
+	return camera.zoom.x
+
+
+func _get_lod_for_zoom(zoom: float) -> String:
+	if zoom <= overview_lod_zoom:
+		return "overview"
+	if zoom <= simple_lod_zoom:
+		return "simple"
+	return "full"
 
 
 func _get_visible_world_rect() -> Rect2:

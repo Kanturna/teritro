@@ -76,3 +76,19 @@ open PRs unless the user explicitly asks.
 
 Re-evaluation trigger: Reassess when a second active developer joins, when PR
 review becomes useful, or before any release workflow needs protected branches.
+
+## ADR-006: Performance-Sensitive Systems Expose Debug Metrics
+
+Decision: Systems that can become performance bottlenecks must expose debug
+metrics and tuning parameters as part of their first useful implementation.
+
+Reason: Teritro is expected to grow toward large maps, many colonies, scans,
+agents, and later units. Hidden costs would make regressions difficult to trace.
+
+Implementation rule: Each performance-sensitive system should report workload
+counts and measured cost when practical. Debug displays, probes, or tests may
+read these metrics, but they must not own simulation truth.
+
+Re-evaluation trigger: Before adding a system that scans many cells, updates
+many agents, renders many elements, or runs every frame/tick without exposing a
+debug path.

@@ -31,6 +31,8 @@ second active developer joins or PR review becomes necessary.
 - Add minimal colony state and ownership, still separated from rendering.
 - Implement Turn-Rule validation only after no-valid-neighbor behavior is
   decided.
+- Define debug metrics for colony count, valid candidates, rejected candidates,
+  and placement validation cost before expanding the prototype.
 
 ## Proposed Later Meta Slice - Tooling and Automation Plan
 

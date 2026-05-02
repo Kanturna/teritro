@@ -1,20 +1,19 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://d0d7dnahylddn"]
 
-[ext_resource type="Script" path="res://src/scenes/hex_lab.gd" id="1_hex_lab"]
-[ext_resource type="Script" path="res://src/rendering/hex_map_renderer.gd" id="2_hex_renderer"]
+[ext_resource type="Script" uid="uid://4j0r413emeui" path="res://src/scenes/hex_lab.gd" id="1_hex_lab"]
+[ext_resource type="Script" uid="uid://dt3yd8hfkti5t" path="res://src/rendering/hex_map_renderer.gd" id="2_hex_renderer"]
 
-[node name="HexLab" type="Node2D"]
+[node name="HexLab" type="Node2D" unique_id=2014589119]
 script = ExtResource("1_hex_lab")
 
-[node name="HexMapRenderer" type="Node2D" parent="."]
+[node name="HexMapRenderer" type="Node2D" parent="." unique_id=2054458]
 script = ExtResource("2_hex_renderer")
 
-[node name="Camera2D" type="Camera2D" parent="."]
-current = true
+[node name="Camera2D" type="Camera2D" parent="." unique_id=745197993]
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=2057813973]
 
-[node name="StatsLabel" type="Label" parent="HUD"]
+[node name="StatsLabel" type="Label" parent="HUD" unique_id=245832631]
 offset_left = 12.0
 offset_top = 12.0
 offset_right = 460.0

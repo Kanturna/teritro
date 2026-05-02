@@ -23,6 +23,8 @@ a loose backlog.
   MultiMesh, shaders, or another renderer should own the beauty layer.
 - Before committing visual sign-off for Slice 3, manually check the lab scene
   for crisp zoom, camera controls, readable HUD, and frame-time gates.
+- Before adding any scan, AI, unit, economy, or renderer subsystem, define the
+  debug metrics and test parameters that reveal its bottlenecks.
 
 ## Resolved Findings
 
@@ -37,3 +39,5 @@ a loose backlog.
 - Declared `needs_user` as a reframe-only stance, separate from review labels.
 - Chose solo-main flow for early solo development, with collaboration triggers
   for re-evaluation.
+- Added renderer LOD and HUD metrics after min-zoom rendering exposed a
+  bottleneck risk.
