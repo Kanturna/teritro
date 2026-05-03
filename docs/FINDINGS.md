@@ -178,3 +178,21 @@ a loose backlog.
   format for future performance review.
 - Terrain and natural-world visuals remain separate from the debug grid and
   should use batched, chunked, tiled, or shader-based render paths later.
+
+### 2026-05-03 - Slice 8.3 plan review process lesson
+
+- Slice 8.2 lowered the debug-grid candidate cap to address an FPS-drop
+  symptom without naming the underlying use case: the neutral grid is a
+  measurement tool the user relies on during world construction.
+- The cap workaround hid the grid at the user's working zoom range, breaking
+  the feature in its primary use case, and had to be removed in Slice 8.3 in
+  favor of a chunked grid-line cache that addresses the structural cause:
+  per-frame line building over visible cells.
+- ADR-007's full-grid `>16 ms` re-evaluation trigger had already fired at
+  Slice 8.2 measurement time, but was answered with a tighter cap rather than
+  the architectural reassessment it asked for.
+- Lesson captured as `UseCase Pre-Clarification` in `docs/WORKFLOW.md`.
+  Symptom-first plans must name the user activity, breakage modes, and
+  architectural options before Quality Gates are drafted, and a fired ADR
+  re-evaluation trigger now explicitly signals that the workaround tier is
+  exhausted.

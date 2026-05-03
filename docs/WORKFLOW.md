@@ -35,6 +35,23 @@ should have one coherent purpose, a review path, and a validation path. Do not
 split coherent work into artificial micro-slices, and do not bundle unrelated
 work to reduce slice count.
 
+## UseCase Pre-Clarification
+
+Before drafting a plan for a symptom (FPS drop, visible bug, felt performance
+issue, awkward UX), name the underlying use case explicitly:
+
+- Which concrete user activity or workflow produces the symptom?
+- What breaks for the user if the symptom remains, and what breaks if the
+  symptom is hidden by a workaround instead of fixed at the source?
+- Which architectural options exist, and on what grounds is each accepted or
+  deferred?
+
+Quality Gates and acceptance checks then commit to the use case, not only to
+the symptom. A workaround is acceptable only when the architectural option
+has been evaluated and explicitly deferred with a concrete re-evaluation
+trigger. A fired ADR re-evaluation trigger is itself a strong signal that the
+workaround tier is exhausted and the architectural option is now due.
+
 ## Plan Value Binding
 
 Parameter values stated in a plan are binding for the implementation of that
