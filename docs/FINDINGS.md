@@ -25,9 +25,10 @@ a loose backlog.
   connected snake-line growth, no straight continuation, visible HUD metrics,
   `R` reset, and full territory visibility after zoom changes in the Godot
   editor.
-- Before replacing `Stall`, define a deterministic continuation search that
-  scans owned boundary/frontier cells nearest to the last placed cell instead
-  of scanning the whole map.
+- Before replacing `Stall`, design a deterministic Stall-Resolution mechanism:
+  scan the colony's own frontier, choose the nearest owned cell with at least
+  one valid placement neighbor, and reactivate from there. Decide distance
+  metric, tie-breaking, and frontier-set storage in the same slice.
 - Before owned-cell sets exceed about 5000 cells or multi-colony rendering
   lands, refactor owned-cell rendering to iterate visible owned cells instead
   of every owned cell.
