@@ -23,7 +23,11 @@ a loose backlog.
   debug metrics and test parameters that reveal its bottlenecks.
 - Before Slice 6 planning, complete the Slice 5 manual visual sign-off: confirm
   connected snake-line growth, no straight continuation, visible HUD metrics,
-  and `R` reset in the Godot editor.
+  `R` reset, and full territory visibility after zoom changes in the Godot
+  editor.
+- Before replacing `Stall`, define a deterministic continuation search that
+  scans owned boundary/frontier cells nearest to the last placed cell instead
+  of scanning the whole map.
 - Before owned-cell sets exceed about 5000 cells or multi-colony rendering
   lands, refactor owned-cell rendering to iterate visible owned cells instead
   of every owned cell.

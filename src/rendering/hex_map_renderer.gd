@@ -124,7 +124,7 @@ func will_draw_cell_grid() -> bool:
 
 
 func needs_camera_redraw() -> bool:
-	return will_draw_cell_grid()
+	return will_draw_cell_grid() or not _owned_cells.is_empty()
 
 
 func estimate_visible_hex_count() -> int:
