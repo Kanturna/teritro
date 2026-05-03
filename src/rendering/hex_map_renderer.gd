@@ -24,6 +24,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var grid_line_antialiased := false
 @export var grid_line_auto_antialias := true
 @export var grid_antialias_line_point_limit := 40000
+@export var full_grid_candidate_limit := 6000
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -41,6 +42,10 @@ var _scratch_polygon := PackedVector2Array()
 var _grid_line_points := PackedVector2Array()
 var _owned_cells: Dictionary = {}
 var _colony_colors: Dictionary = {}
+var _owned_cells_batch: MultiMeshInstance2D
+var _owned_cell_mesh: ArrayMesh
+var _owned_cell_texture: ImageTexture
+var _owned_batch_colors := PackedColorArray()
 var _visible_centers := PackedVector2Array()
 var _visible_coords: Array[Vector2i] = []
 var _visible_corners: Array[Vector2] = []
@@ -62,9 +67,15 @@ var _lod_mode := "full"
 var _cell_grid_drawn := false
 var _grid_line_effective_antialiased := false
 var _owned_cells_drawn := 0
+var _owned_batch_instances := 0
+var _owned_batch_rebuild_ms := 0.0
+var _owned_batch_draw_calls := 0
+var _grid_suppressed_by_limit := false
+var _estimated_full_grid_candidates := 0
 
 
 func _ready() -> void:
+	_ensure_owned_cells_batch()
 	_visible_corners.resize(4)
 	_rebuild_polygon()
 	_rebuild_map()
@@ -104,13 +115,21 @@ func get_debug_metrics() -> Dictionary:
 		"grid_line_effective_antialiased": _grid_line_effective_antialiased,
 		"grid_antialias_line_point_limit": grid_antialias_line_point_limit,
 		"owned_cells_total": _owned_cells.size(),
-		"owned_cells_drawn": _owned_cells_drawn,
+		"owned_cells_drawn": _owned_batch_instances,
+		"owned_render_mode": "multimesh",
+		"owned_batch_instances": _owned_batch_instances,
+		"owned_batch_rebuild_ms": _owned_batch_rebuild_ms,
+		"owned_batch_draw_calls": _owned_batch_draw_calls,
+		"full_grid_candidate_limit": full_grid_candidate_limit,
+		"grid_suppressed_by_limit": _grid_suppressed_by_limit,
+		"estimated_full_grid_candidates": _estimated_full_grid_candidates,
 	}
 
 
 func set_territory_snapshot(snapshot: Dictionary, colony_colors: Dictionary) -> void:
 	_owned_cells = snapshot.get("cell_owners", {}).duplicate()
 	_colony_colors = colony_colors.duplicate()
+	_rebuild_owned_cells_batch()
 	if is_inside_tree():
 		queue_redraw()
 
@@ -120,11 +139,32 @@ func get_current_lod_mode() -> String:
 
 
 func will_draw_cell_grid() -> bool:
-	return grid_visible and get_current_lod_mode() == "full"
+	if not grid_visible or get_current_lod_mode() != "full":
+		_grid_suppressed_by_limit = false
+		_estimated_full_grid_candidates = 0
+		return false
+
+	_estimated_full_grid_candidates = _estimate_full_grid_candidate_count()
+	_grid_suppressed_by_limit = (
+		full_grid_candidate_limit > 0
+		and _estimated_full_grid_candidates > full_grid_candidate_limit
+	)
+	return not _grid_suppressed_by_limit
 
 
 func needs_camera_redraw() -> bool:
 	return will_draw_cell_grid()
+
+
+func get_owned_cells_batch() -> MultiMeshInstance2D:
+	_ensure_owned_cells_batch()
+	return _owned_cells_batch
+
+
+func get_owned_cell_instance_color(instance_index: int) -> Color:
+	if instance_index < 0 or instance_index >= _owned_batch_colors.size():
+		return Color.TRANSPARENT
+	return _owned_batch_colors[instance_index]
 
 
 func estimate_visible_hex_count() -> int:
@@ -147,7 +187,6 @@ func _draw() -> void:
 
 	if _lod_mode == "overview":
 		var overview_submit_start := Time.get_ticks_usec()
-		_draw_owned_cells(_get_visible_local_rect(), false)
 		_draw_overview_map()
 		_submit_ms = _elapsed_ms(overview_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
@@ -155,15 +194,13 @@ func _draw() -> void:
 
 	if _lod_mode == "simple":
 		var simple_submit_start := Time.get_ticks_usec()
-		_draw_owned_cells(_get_visible_local_rect(), false)
 		_draw_simple_map()
 		_submit_ms = _elapsed_ms(simple_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
 		return
 
-	if not grid_visible:
+	if not will_draw_cell_grid():
 		var hidden_submit_start := Time.get_ticks_usec()
-		_draw_owned_cells(_get_visible_local_rect(), false)
 		_draw_map_outline()
 		_draw_debug_axis_lines()
 		_submit_ms = _elapsed_ms(hidden_submit_start)
@@ -184,7 +221,6 @@ func _draw() -> void:
 	_line_build_ms = _elapsed_ms(line_build_start)
 
 	var submit_start := Time.get_ticks_usec()
-	_draw_owned_cells(visible_rect, true)
 	_draw_map_outline()
 	_draw_debug_axis_lines()
 	if _line_point_count > 0:
@@ -208,7 +244,7 @@ func _reset_draw_metrics() -> void:
 	_candidate_hex_count = 0
 	_culled_by_map_count = 0
 	_culled_by_view_count = 0
-	_draw_call_estimate = 0
+	_draw_call_estimate = _owned_batch_draw_calls
 	_draw_ms = 0.0
 	_bounds_ms = 0.0
 	_candidate_ms = 0.0
@@ -217,7 +253,9 @@ func _reset_draw_metrics() -> void:
 	_line_point_count = 0
 	_cell_grid_drawn = false
 	_grid_line_effective_antialiased = false
-	_owned_cells_drawn = 0
+	_owned_cells_drawn = _owned_batch_instances
+	_grid_suppressed_by_limit = false
+	_estimated_full_grid_candidates = 0
 
 
 func _rebuild_map() -> void:
@@ -229,8 +267,10 @@ func _rebuild_map() -> void:
 
 func _rebuild_polygon() -> void:
 	_base_polygon = _build_hex_polygon_points()
+	_rebuild_owned_cell_mesh()
 	_map_outline_segments = _build_map_outline_segments()
 	_scratch_polygon.resize(6)
+	_rebuild_owned_cells_batch()
 	if is_inside_tree():
 		queue_redraw()
 
@@ -304,23 +344,86 @@ func _should_antialias_grid_lines() -> bool:
 	return grid_line_auto_antialias and _line_point_count <= grid_antialias_line_point_limit
 
 
-func _draw_owned_cells(visible_rect: Rect2, cull_against_view: bool) -> void:
-	if _owned_cells.is_empty() or _base_polygon.size() != 6:
+func _ensure_owned_cells_batch() -> void:
+	if _owned_cells_batch != null:
 		return
 
+	_owned_cells_batch = MultiMeshInstance2D.new()
+	_owned_cells_batch.name = "OwnedCellsBatch"
+	_owned_cells_batch.z_index = -1
+	_owned_cells_batch.show_behind_parent = true
+	_owned_cells_batch.texture = _get_owned_cell_texture()
+	add_child(_owned_cells_batch)
+
+
+func _get_owned_cell_texture() -> ImageTexture:
+	if _owned_cell_texture != null:
+		return _owned_cell_texture
+
+	var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	_owned_cell_texture = ImageTexture.create_from_image(image)
+	return _owned_cell_texture
+
+
+func _rebuild_owned_cell_mesh() -> void:
+	_owned_cell_mesh = ArrayMesh.new()
+	if _base_polygon.size() != 6:
+		return
+
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	vertices.resize(7)
+	vertices[0] = Vector3.ZERO
+	for point_index in range(6):
+		var point := _base_polygon[point_index]
+		vertices[point_index + 1] = Vector3(point.x, point.y, 0.0)
+
+	indices.resize(18)
+	var write_index := 0
+	for point_index in range(6):
+		indices[write_index] = 0
+		indices[write_index + 1] = point_index + 1
+		indices[write_index + 2] = (point_index + 1) % 6 + 1
+		write_index += 3
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	_owned_cell_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+
+func _rebuild_owned_cells_batch() -> void:
+	var start_usec := Time.get_ticks_usec()
+	_ensure_owned_cells_batch()
+
+	var multimesh := MultiMesh.new()
+	multimesh.mesh = _owned_cell_mesh
+	multimesh.transform_format = MultiMesh.TRANSFORM_2D
+	multimesh.use_colors = true
+	multimesh.set_instance_count(_owned_cells.size())
+	var instance_colors := PackedColorArray()
+	instance_colors.resize(_owned_cells.size())
+	_owned_batch_colors = instance_colors
+	_owned_cells_batch.multimesh = multimesh
+
+	var instance_index := 0
 	for coord in _owned_cells.keys():
 		var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
-		if cull_against_view and not _hex_rect_intersects_view(center, visible_rect):
-			continue
-
 		var colony_id := int(_owned_cells[coord])
 		var color: Color = _colony_colors.get(colony_id, default_colony_color)
-		for point_index in range(6):
-			_scratch_polygon[point_index] = center + _base_polygon[point_index]
+		instance_colors[instance_index] = color
+		_owned_cells_batch.multimesh.set_instance_color(instance_index, color)
+		_owned_cells_batch.multimesh.set_instance_transform_2d(instance_index, Transform2D(0.0, center))
+		instance_index += 1
 
-		draw_colored_polygon(_scratch_polygon, color)
-		_owned_cells_drawn += 1
-		_draw_call_estimate += 1
+	_owned_batch_colors = instance_colors
+	_owned_cells_batch.multimesh.set_visible_instance_count(_owned_cells.size())
+	_owned_batch_instances = _owned_cells.size()
+	_owned_batch_draw_calls = 1 if _owned_batch_instances > 0 else 0
+	_owned_cells_drawn = _owned_batch_instances
+	_owned_batch_rebuild_ms = _elapsed_ms(start_usec)
 
 
 func _draw_overview_map() -> void:
@@ -494,6 +597,13 @@ func _get_visible_axial_bounds() -> Rect2i:
 		Vector2i(min_q, min_r),
 		Vector2i(max_q - min_q, max_r - min_r)
 	)
+
+
+func _estimate_full_grid_candidate_count() -> int:
+	var bounds := _get_visible_axial_bounds()
+	var q_count := bounds.end.x - bounds.position.x + 1
+	var r_count := bounds.end.y - bounds.position.y + 1
+	return maxi(0, q_count * r_count)
 
 
 func _elapsed_ms(start_usec: int) -> float:

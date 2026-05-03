@@ -1,5 +1,7 @@
 extends SceneTree
 
+const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
+
 var _failures: Array[String] = []
 
 
@@ -51,10 +53,20 @@ func _run() -> void:
 		"grid_antialias_line_point_limit",
 		"owned_cells_total",
 		"owned_cells_drawn",
+		"owned_render_mode",
+		"owned_batch_instances",
+		"owned_batch_rebuild_ms",
+		"owned_batch_draw_calls",
+		"full_grid_candidate_limit",
+		"grid_suppressed_by_limit",
+		"estimated_full_grid_candidates",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)
 	_assert_eq(metrics["map_outline_segments"], 966, "radius 80 map outline segment count")
 	_assert_eq(metrics["owned_cells_total"], 1, "renderer has starter ownership snapshot")
+	_assert_eq(metrics["owned_render_mode"], "multimesh", "owned cell render mode")
+	_assert_eq(metrics["owned_batch_instances"], 1, "starter owned batch instances")
+	_assert_eq(metrics["owned_batch_draw_calls"], 1, "starter owned batch draw call estimate")
 
 	var sim_metrics: Dictionary = debug_overlay.get_provider_metrics("simulation")
 	for key in [
@@ -112,6 +124,9 @@ func _run() -> void:
 	_assert_eq(metrics["grid_line_effective_antialiased"], true, "auto antialiasing activates under line-point limit")
 
 	_assert_camera_redraw_matrix(renderer, camera)
+	await _assert_owned_cell_batch_path(renderer, camera)
+	await _assert_multimesh_preserves_per_colony_color(renderer)
+	_assert_grid_candidate_cap(renderer, camera)
 
 	if _failures.is_empty():
 		print("Hex debug metrics tests passed.")
@@ -153,6 +168,68 @@ func _assert_camera_redraw_matrix(renderer: Node, camera: Camera2D) -> void:
 			test_case["redraw"],
 			"camera redraw matrix zoom %.2f grid %s" % [test_case["zoom"], test_case["grid"]]
 		)
+
+
+func _assert_owned_cell_batch_path(renderer: Node, camera: Camera2D) -> void:
+	camera.zoom = Vector2.ONE
+	renderer.grid_visible = false
+	var child_count_before: int = renderer.get_child_count()
+	var owners := _owned_cells_snapshot(13)
+	renderer.set_territory_snapshot({"cell_owners": owners}, {1: Color(0.1, 0.36, 1.0, 0.45)})
+	renderer.queue_redraw()
+	await process_frame
+	await process_frame
+
+	var metrics: Dictionary = renderer.get_debug_metrics()
+	_assert_eq(renderer.get_child_count(), child_count_before, "owned batch does not add per-cell nodes")
+	_assert_eq(metrics["owned_cells_total"], owners.size(), "synthetic owned snapshot count")
+	_assert_eq(metrics["owned_batch_instances"], owners.size(), "synthetic owned batch instance count")
+	_assert_eq(metrics["owned_cells_drawn"], owners.size(), "owned cells drawn via batch metric")
+	_assert_eq(metrics["owned_batch_draw_calls"], 1, "owned batch draw call remains one")
+	_assert_true(metrics["draw_calls"] <= 5, "draw call estimate does not scale with owned cells")
+
+
+func _assert_multimesh_preserves_per_colony_color(renderer: Node) -> void:
+	var owners := {
+		Vector2i(1, 0): 1,
+		Vector2i(2, 0): 2,
+	}
+	var colors := {
+		1: Color.RED,
+		2: Color.BLUE,
+	}
+	renderer.set_territory_snapshot({"cell_owners": owners}, colors)
+	await process_frame
+
+	var batch: MultiMeshInstance2D = renderer.get_owned_cells_batch()
+	_assert_eq(batch.multimesh.instance_count, 2, "two-color batch instance count")
+	_assert_true(
+		renderer.get_owned_cell_instance_color(0) != renderer.get_owned_cell_instance_color(1),
+		"per-colony instance colors are preserved"
+	)
+
+
+func _assert_grid_candidate_cap(renderer: Node, camera: Camera2D) -> void:
+	camera.zoom = Vector2.ONE
+	renderer.grid_visible = true
+	renderer.full_grid_candidate_limit = 6000
+	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom under grid candidate cap")
+
+	renderer.full_grid_candidate_limit = 1
+	_assert_eq(renderer.will_draw_cell_grid(), false, "low grid candidate cap suppresses full grid")
+	var metrics: Dictionary = renderer.get_debug_metrics()
+	_assert_eq(metrics["grid_suppressed_by_limit"], true, "grid suppressed metric")
+	_assert_eq(metrics["full_grid_candidate_limit"], 1, "grid cap metric")
+	_assert_true(metrics["estimated_full_grid_candidates"] > 1, "estimated grid candidate count")
+
+	renderer.full_grid_candidate_limit = 6000
+
+
+func _owned_cells_snapshot(radius: int) -> Dictionary:
+	var owners := {}
+	for coord in HexGridMath.coords_in_radius(radius):
+		owners[coord] = 1
+	return owners
 
 
 func _assert_eq(actual, expected, label: String) -> void:

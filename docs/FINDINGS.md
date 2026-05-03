@@ -29,10 +29,10 @@ a loose backlog.
 - Before AI policy lands, refactor `step_colony()` into a validated action
   surface such as `get_legal_actions()` plus `apply_action()` so agents choose
   intentions without gaining simulation authority.
-- Before owned-cell sets exceed about 500 cells, camera-movement FPS drops with
-  the current owned-cell count, or multi-colony rendering lands, refactor
-  owned-cell rendering toward MultiMesh, chunks, TileMapLayer, or another
-  batched path.
+- Before owned-cell sets exceed about 10000 cells or
+  `owned_batch_rebuild_ms` consistently exceeds 5 ms, evaluate incremental
+  MultiMesh updates that apply only changed cells instead of rebuilding the
+  entire batch.
 - Before grid-on zoom-out views become product-relevant, add a stricter grid
   LOD threshold or visible-cell cap.
 - Before implementing multi-colony ticks, make changed-cell metrics accumulate
@@ -153,3 +153,14 @@ a loose backlog.
 - Enclosure scans now use an adaptive effective cap. MultiMesh rendering,
   known-open enclosure caches, stricter closure triggers, and grid LOD work are
   deferred to a dedicated performance architecture slice.
+
+### 2026-05-03 - Slice 8 renderer batching
+
+- Owned-cell rendering moved from per-cell `_draw()` polygons to one internal
+  `MultiMeshInstance2D` batch helper.
+- Grid, map outline, and debug axes remain procedural overlays; this makes the
+  renderer hybrid instead of a full renderer replacement.
+- Full-grid debug rendering now has a candidate cap so large low-zoom full-grid
+  views are suppressed before excessive line building starts.
+- Known-open enclosure caches, stricter enclosure triggers, and larger grid
+  renderer changes remain follow-up decisions.

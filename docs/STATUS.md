@@ -8,13 +8,14 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 7.1 - Camera Redraw & Enclosure Cap Performance Patch v0.1
+Slice 8 - Batched Territory Rendering & Grid Guard v0.1
 
 ## Implemented (this slice)
 
-Added a focused performance patch after Slice 7. Camera movement no longer
-forces owned-cell redraws unless the full cell grid is visible, and enclosure
-scans now use an adaptive effective cap with debug visibility.
+Moved owned-cell rendering from per-cell `_draw()` polygons to a single
+`MultiMeshInstance2D` batch helper inside `HexMapRenderer`. Added a full-grid
+candidate cap so large full-grid debug views are suppressed before excessive
+line-building work starts.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -28,8 +29,9 @@ changes, remove old slice contents instead of growing this file into history.
 - AI-facing `get_legal_actions()` / `apply_action()` surface.
 - Incremental frontier-set maintenance.
 - Persistent enclosure caches or nested-enclosure policy.
-- Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
-- Grid LOD or visible-cell-cap refactor.
+- TileMapLayer, shader, chunk renderer, or beauty-layer work.
+- Known-open enclosure cache, stricter enclosure trigger, or full grid LOD
+  refactor beyond the Slice 8 candidate cap.
 - Renderer-specific rules documentation.
 - New documentation layout or plan-rules split.
 - Hooks, automations, feature branches, pushes, or PRs.
@@ -42,18 +44,19 @@ changes, remove old slice contents instead of growing this file into history.
 - AI action APIs and policy decisions.
 - Persistent frontier sets or map-radius stress work.
 - Persistent enclosure caches or nested-enclosure behavior.
-- Grid renderer refactor or new grid LOD policy.
+- Grid shader, beauty-layer, TileMapLayer, or chunk renderer work.
+- Known-open enclosure cache, stricter enclosure trigger, or grid LOD policy
+  beyond the Slice 8 candidate cap.
 - New external assets or addons.
-- Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - New documentation layout or plan-rules split.
 - Hooks, automations, feature branches, pushes, PRs.
 
 ## Validation
 
-Slice 7.1 changes renderer redraw behavior, enclosure scan limits, HUD-visible
-debug metrics, tests, and documentation. Run the headless test suite,
-`git diff --check`, and a manual Godot editor check that grid-off pan/zoom no
-longer clips territory and enclosure abort spikes are reduced.
+Slice 8 changes renderer batching, grid-cap behavior, HUD-visible renderer
+metrics, tests, and documentation. Run the headless test suite,
+`git diff --check`, and a manual Godot editor check that territory remains
+visible under the grid and grid-off pan/zoom stays stable with 500+ owned cells.
 
 ## State Rule
 

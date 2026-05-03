@@ -176,3 +176,26 @@ adaptive safety cap, if `enclosure_ms` exceeds 5 ms, if visual playtests show
 missed legitimate enclosures because the adaptive cap is too tight, before
 multi-colony spawn, or before nested enclosure behavior becomes a product
 requirement.
+
+## ADR-011: Hybrid Renderer For Owned Cells And Debug Overlays
+
+Decision: Owned-cell territory fill renders through one internal
+`MultiMeshInstance2D` batch helper, while grid lines, map outline, and debug
+axes remain procedural `_draw()` overlays.
+This extends ADR-007's procedural renderer decision rather than replacing it.
+
+Reason: Per-cell `_draw()` polygons scale directly with owned-cell count and
+caused frame-time drops as territory grew. Grid lines and map outline already
+use batched line submission, so moving only owned-cell fill to MultiMesh gives
+the needed performance improvement without replacing the whole lab renderer.
+
+Implementation rule: `HexMapRenderer.set_territory_snapshot()` converts
+simulation snapshots and render-side colony colors into MultiMesh instances.
+The simulation does not know about MultiMesh, colors, camera state, or nodes.
+The `OwnedCellsBatch` helper stays internal to `HexMapRenderer` and renders
+under `_draw()` overlays for grid, outline, and axes.
+
+Re-evaluation trigger: Reassess if grid/outline/axes require per-cell visual
+state, if `owned_batch_rebuild_ms` consistently exceeds 5 ms, if owned cells
+exceed about 10000, or if multi-colony rendering needs a different visual
+stacking or update strategy.

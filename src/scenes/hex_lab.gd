@@ -167,7 +167,12 @@ func _update_hud(frame_ms: float) -> void:
 	var draw_stats: Dictionary = overlay_metrics["renderer_draw_ms"]
 	var grid_status := "off"
 	if metrics["grid_visible"]:
-		grid_status = "drawn" if metrics["cell_grid_drawn"] else "hidden by LOD"
+		if metrics["cell_grid_drawn"]:
+			grid_status = "drawn"
+		elif metrics["grid_suppressed_by_limit"]:
+			grid_status = "hidden by cap"
+		else:
+			grid_status = "hidden by LOD"
 	var aa_status := "on" if metrics["grid_line_effective_antialiased"] else "off"
 	if metrics["grid_line_auto_antialias"] and not metrics["grid_line_antialiased"]:
 		aa_status = "auto-on" if metrics["grid_line_effective_antialiased"] else "auto-off"
@@ -246,6 +251,14 @@ func _update_hud(frame_ms: float) -> void:
 				metrics["candidate_ms"],
 				metrics["line_build_ms"],
 				metrics["submit_ms"],
+			]
+			+ "Render batch: %s | instances %d | rebuild %.3f ms | grid cap %d/%d\n"
+			% [
+				metrics["owned_render_mode"],
+				metrics["owned_batch_instances"],
+				metrics["owned_batch_rebuild_ms"],
+				metrics["estimated_full_grid_candidates"],
+				metrics["full_grid_candidate_limit"],
 			]
 			+ "Draw 60f min/avg/max: %.2f / %.2f / %.2f ms | AA: %s\n"
 			% [

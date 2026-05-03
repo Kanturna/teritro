@@ -25,8 +25,10 @@ func _run() -> void:
 
 	_assert_eq(debug_overlay.has_provider("simulation"), true, "simulation provider registered")
 	_assert_eq(renderer.get_total_hex_count(), 19441, "radius 80 total hex count")
-	_assert_eq(renderer.get_child_count(), 0, "renderer does not create child nodes per hex")
+	_assert_eq(renderer.get_child_count(), 1, "renderer has one owned-cell batch helper")
+	_assert_eq(renderer.get_owned_cells_batch().name, "OwnedCellsBatch", "owned-cell batch helper name")
 	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], 1, "renderer receives starter snapshot")
+	_assert_eq(renderer.get_debug_metrics()["owned_batch_instances"], 1, "renderer batches starter ownership")
 	_assert_true(
 		renderer.estimate_visible_hex_count() < 2800,
 		"default zoom visible hex count below 2800 with edge coverage, got %d"
@@ -76,6 +78,11 @@ func _run() -> void:
 	sim_metrics = debug_overlay.get_provider_metrics("simulation")
 	_assert_eq(sim_metrics["enclosure_filled_cells_last_step"], 1, "scene sim fills enclosure")
 	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], owned.size() + 2, "renderer receives filled snapshot")
+	_assert_eq(
+		renderer.get_debug_metrics()["owned_batch_instances"],
+		owned.size() + 2,
+		"renderer batches filled snapshot"
+	)
 
 	if _failures.is_empty():
 		print("Hex lab smoke tests passed.")

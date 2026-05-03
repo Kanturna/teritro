@@ -5,18 +5,20 @@ every idea.
 
 ## Current Slice
 
-Slice 7.1 - Camera Redraw & Enclosure Cap Performance Patch v0.1
+Slice 8 - Batched Territory Rendering & Grid Guard v0.1
 
-## Slice 7.1 Exit Criteria
+## Slice 8 Exit Criteria
 
-- `docs/PLAN_SLICE_7_1.md` records the accepted reviewed plan.
-- Camera movement redraws the renderer only when the full cell grid is visible.
-- Owned cells are not view-culled in cached non-grid redraw paths.
-- Enclosure scans use the adaptive effective cap
-  `min(enclosure_scan_cell_limit, max(50, owned_cells / 2))`.
-- Enclosure scan cap is exact, not off by one.
-- Debug HUD exposes the effective enclosure scan limit.
-- Headless tests cover the redraw LOD matrix and adaptive cap behavior.
+- `docs/PLAN_SLICE_8.md` records the accepted reviewed plan.
+- Owned cells render through one internal `MultiMeshInstance2D` batch helper.
+- Renderer creates no per-cell nodes and does not use per-cell `_draw()`
+  polygons for territory fill.
+- Renderer metrics expose owned batch instances, rebuild cost, render mode, and
+  grid-cap status.
+- Synthetic tests cover 500+ owned cells, per-colony colors, batch draw-call
+  shape, and grid-cap suppression.
+- ADR-011 documents the hybrid renderer relationship to ADR-007.
+- `FINDINGS.md` records the next trigger for incremental MultiMesh updates.
 - `git diff --check` passes.
 
 ## Branching
@@ -24,16 +26,19 @@ Slice 7.1 - Camera Redraw & Enclosure Cap Performance Patch v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 8 - Renderer And Enclosure Performance Architecture v0.1
+## Proposed Slice 8.2 - Renderer Follow-Up Measurement v0.1
 
-- Decide whether owned-cell rendering moves to MultiMesh, chunks, TileMapLayer,
-  or another batched rendering path before territories exceed about 500 cells.
+- Manually measure grid off/on performance after MultiMesh batching at about
+  500, 1000, and 2000 owned cells.
+- Decide whether grid rendering needs a stricter LOD threshold, visible-cell
+  cap tuning, shader, TileMapLayer, or chunk renderer before grid-on zoom-out
+  views are product-relevant.
 - Decide whether open/aborted enclosure regions need a known-open cache with
-  local invalidation.
-- Decide whether grid rendering needs a stricter LOD threshold or visible-cell
-  cap before zoom-out/grid-on views are product-relevant.
+  local invalidation if `enclosure_ms` still exceeds 5 ms in practical runs.
 - Re-evaluate stricter enclosure triggers or loop-detection if adaptive caps
   hide legitimate enclosures.
+- Evaluate incremental MultiMesh updates before owned cells exceed about 10000
+  or `owned_batch_rebuild_ms` consistently exceeds 5 ms.
 - Keep map radius `120` as a measured stress case only, not a new default.
 
 ## Proposed Later Slice - Expansion Behavior Review & Multi-Colony Prep v0.1
