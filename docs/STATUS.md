@@ -8,13 +8,15 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 5 - First Colony & Turn-Rule Prototype v0.1
+Slice 6 - Stall Resolution via Frontier Re-Anchoring v0.1
 
 ## Implemented (this slice)
 
-Added the first sparse TerritorySim prototype with one deterministic
-auto-expanding test colony, Turn-Rule validation, renderer snapshot handoff,
-simulation debug metrics, and reset support.
+Added stall-only frontier re-anchoring for the first colony prototype. When a
+local dead end is reached, the simulation scans only owned cells, chooses the
+nearest frontier anchor deterministically, resets placement direction, and
+continues in the same sim step. Added re-anchor debug metrics, tests, and
+documentation.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -25,6 +27,8 @@ changes, remove old slice contents instead of growing this file into history.
 - Multi-colony spawn, simultaneous expansion, border conflict, and ownership
   conflict resolution.
 - AI, units, combat, economy, balancing, and beauty/shader polish.
+- AI-facing `get_legal_actions()` / `apply_action()` surface.
+- Incremental frontier-set maintenance.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - Renderer-specific rules documentation.
 - New documentation layout or plan-rules split.
@@ -35,6 +39,8 @@ changes, remove old slice contents instead of growing this file into history.
 - AI, combat, economy, units, and final balancing rules.
 - Enclosure-fill and contested-border semantics.
 - Multi-colony conflict resolution and simultaneous placement rules.
+- AI action APIs and policy decisions.
+- Persistent frontier sets or map-radius stress work.
 - New external assets or addons.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - New documentation layout or plan-rules split.
@@ -42,10 +48,10 @@ changes, remove old slice contents instead of growing this file into history.
 
 ## Validation
 
-Slice 5 changes runtime simulation, rendering integration, scene behavior,
-tests, and documentation. Run the headless test suite, `git diff --check`, and
-a manual Godot editor check for visible connected expansion, no straight
-continuation, HUD metrics, and `R` reset.
+Slice 6 changes runtime simulation behavior, HUD-visible debug metrics, tests,
+and documentation. Run the headless test suite, `git diff --check`, and a
+manual Godot editor check that the colony continues after local dead ends, HUD
+re-anchor metrics update, and `R` reset still works.
 
 ## State Rule
 

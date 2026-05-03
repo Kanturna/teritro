@@ -67,6 +67,15 @@ func _run() -> void:
 		"neighbor_checks_last_step",
 		"placement_validation_ms",
 		"stalled_colonies",
+		"reanchor_attempts_last_step",
+		"reanchors_last_step",
+		"reanchors_total",
+		"frontier_scan_cells_last_stall",
+		"frontier_neighbor_checks_last_stall",
+		"last_reanchor_distance",
+		"stall_resolution_ms",
+		"permanent_stalls_last_step",
+		"permanent_stalls_total",
 	]:
 		_assert_eq(sim_metrics.has(key), true, "simulation metric key %s" % key)
 	_assert_eq(sim_metrics["colony_count"], 1, "simulation colony count")

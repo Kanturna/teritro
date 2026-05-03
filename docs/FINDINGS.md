@@ -21,14 +21,13 @@ a loose backlog.
   MultiMesh, shaders, or another renderer should own the beauty layer.
 - Before adding any scan, AI, unit, economy, or renderer subsystem, define the
   debug metrics and test parameters that reveal its bottlenecks.
-- Before Slice 6 planning, complete the Slice 5 manual visual sign-off: confirm
-  connected snake-line growth, no straight continuation, visible HUD metrics,
-  `R` reset, and full territory visibility after zoom changes in the Godot
-  editor.
-- Before replacing `Stall`, design a deterministic Stall-Resolution mechanism:
-  scan the colony's own frontier, choose the nearest owned cell with at least
-  one valid placement neighbor, and reactivate from there. Decide distance
-  metric, tie-breaking, and frontier-set storage in the same slice.
+- Before a colony's `owned_cells` exceeds about 3000, a single
+  `stall_resolution_ms` exceeds 5 ms, or re-anchor frequency stays above 1/sec,
+  switch from on-demand frontier scanning to incremental frontier-set
+  maintenance per colony.
+- Before AI policy lands, refactor `step_colony()` into a validated action
+  surface such as `get_legal_actions()` plus `apply_action()` so agents choose
+  intentions without gaining simulation authority.
 - Before owned-cell sets exceed about 5000 cells or multi-colony rendering
   lands, refactor owned-cell rendering to iterate visible owned cells instead
   of every owned cell.
@@ -108,3 +107,19 @@ a loose backlog.
 - The current `_draw()` renderer remains acceptable for the first one-colony
   prototype because owned cells are sparse snapshots and the sim step does not
   scan the whole map.
+- Manual Slice 5 visual review confirmed visible connected growth, reset
+  behavior, and HUD visibility. The permanent local-stall behavior became the
+  Slice 6 stall-resolution target.
+
+### 2026-05-03 - Slice 6 Stall-Resolution decisions
+
+- Replacing permanent `Stall` is a game-design decision, not a bug fix.
+- Stall recovery is internal and stall-only in v0.1; it is not a general agent
+  action yet.
+- Re-anchor chooses the nearest owned frontier cell to the previous
+  `last_placed_cell`, with `q` then `r` tie-breaks.
+- Re-anchor resets placement direction and then places atomically in the same
+  sim step.
+- On-demand frontier scanning over owned cells is accepted for the one-colony
+  prototype; concrete thresholds now trigger future incremental frontier-set
+  work.

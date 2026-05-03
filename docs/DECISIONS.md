@@ -130,3 +130,25 @@ deferred and must be event-triggered and area-bound when planned.
 Re-evaluation trigger: Reassess before increasing default map radius above 80,
 before adding multi-colony border behavior, before enclosure-fill, or before any
 system scans cells beyond a local placement neighborhood.
+
+## ADR-009: Stall-Only Frontier Re-Anchoring
+
+Decision: A colony that cannot expand from its last placed cell uses stall-only
+frontier re-anchoring and picks the nearest owned frontier cell to the previous
+last placed cell.
+
+Reason: Nearest re-anchoring preserves locality and makes the baseline growth
+pattern predictable. A farthest-frontier policy would cover broader area sooner
+but creates more fragmented snake patterns. Nearest is the v0.1 game-design
+baseline, not a final AI policy.
+
+Implementation rule: Re-anchor is only attempted after normal local placement
+fails. The scan checks the colony's own owned cells, not the whole map. A
+frontier cell is valid when it has at least one in-bounds unowned neighbor.
+Tie-break by hex distance, then axial `q`, then axial `r`. Reset placement
+direction before placing from the chosen anchor.
+
+Re-evaluation trigger: Reassess if visual playtests show clumping or weak map
+coverage, if multi-colony border conflict introduces anchor bias, before AI
+policy training, before a colony exceeds about 3000 owned cells, if one stall
+resolution exceeds 5 ms, or if sustained re-anchor frequency exceeds 1/sec.

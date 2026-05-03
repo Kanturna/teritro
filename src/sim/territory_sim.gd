@@ -43,6 +43,15 @@ var _rejected_out_of_bounds_last_step := 0
 var _neighbor_checks_last_step := 0
 var _placement_validation_ms := 0.0
 var _changed_cells_last_step := 0
+var _reanchor_attempts_last_step := 0
+var _reanchors_last_step := 0
+var _reanchors_total := 0
+var _frontier_scan_cells_last_stall := 0
+var _frontier_neighbor_checks_last_stall := 0
+var _last_reanchor_distance := -1
+var _stall_resolution_ms := 0.0
+var _permanent_stalls_last_step := 0
+var _permanent_stalls_total := 0
 
 
 func configure(new_map_radius: int) -> void:
@@ -59,6 +68,8 @@ func reset() -> void:
 	cell_owners.clear()
 	colonies.clear()
 	_reset_step_metrics()
+	_reanchors_total = 0
+	_permanent_stalls_total = 0
 
 	for config in configs:
 		_spawn_colony_internal(config["id"], config["starter"], false)
@@ -77,6 +88,35 @@ func step_colony(colony_id: int) -> bool:
 		_placement_validation_ms = _elapsed_ms(start_usec)
 		return false
 
+	if _try_place_from_current_anchor(colony):
+		_placement_validation_ms = _elapsed_ms(start_usec)
+		return true
+
+	var stall_start_usec := Time.get_ticks_usec()
+	_reanchor_attempts_last_step = 1
+	var anchor_result := _find_reanchor_cell(colony)
+	_stall_resolution_ms = _elapsed_ms(stall_start_usec)
+
+	if anchor_result["found"]:
+		_reanchors_last_step = 1
+		_reanchors_total += 1
+		_last_reanchor_distance = anchor_result["distance"]
+		colony.last_placed_cell = anchor_result["cell"]
+		colony.last_placement_direction = UNDEFINED_DIRECTION
+		colony.stalled = false
+
+		if _try_place_from_current_anchor(colony):
+			_placement_validation_ms = _elapsed_ms(start_usec)
+			return true
+
+	colony.stalled = true
+	_permanent_stalls_last_step = 1
+	_permanent_stalls_total += 1
+	_placement_validation_ms = _elapsed_ms(start_usec)
+	return false
+
+
+func _try_place_from_current_anchor(colony: ColonyState) -> bool:
 	for direction_index in range(6):
 		_candidate_count_last_step += 1
 		_neighbor_checks_last_step += 1
@@ -102,11 +142,8 @@ func step_colony(colony_id: int) -> bool:
 
 		_valid_candidates_last_step += 1
 		_place_cell(colony, candidate, direction_index)
-		_placement_validation_ms = _elapsed_ms(start_usec)
 		return true
 
-	colony.stalled = true
-	_placement_validation_ms = _elapsed_ms(start_usec)
 	return false
 
 
@@ -158,6 +195,15 @@ func get_debug_metrics() -> Dictionary:
 		"placement_validation_ms": _placement_validation_ms,
 		"changed_cells_last_step": _changed_cells_last_step,
 		"stalled_colonies": stalled_colonies,
+		"reanchor_attempts_last_step": _reanchor_attempts_last_step,
+		"reanchors_last_step": _reanchors_last_step,
+		"reanchors_total": _reanchors_total,
+		"frontier_scan_cells_last_stall": _frontier_scan_cells_last_stall,
+		"frontier_neighbor_checks_last_stall": _frontier_neighbor_checks_last_stall,
+		"last_reanchor_distance": _last_reanchor_distance,
+		"stall_resolution_ms": _stall_resolution_ms,
+		"permanent_stalls_last_step": _permanent_stalls_last_step,
+		"permanent_stalls_total": _permanent_stalls_total,
 	}
 
 
@@ -191,6 +237,48 @@ func _place_cell(colony: ColonyState, coord: Vector2i, direction_index: int) -> 
 	_changed_cells_last_step = 1
 
 
+func _find_reanchor_cell(colony: ColonyState) -> Dictionary:
+	var has_best := false
+	var best_cell := Vector2i.ZERO
+	var best_distance := 0
+	var origin := colony.last_placed_cell
+
+	for owned_cell in colony.owned_cells.keys():
+		var cell: Vector2i = owned_cell
+		_frontier_scan_cells_last_stall += 1
+		if not _has_free_neighbor(cell):
+			continue
+
+		var distance := HexGridMath.distance(origin, cell)
+		if (
+			not has_best
+			or distance < best_distance
+			or (
+				distance == best_distance
+				and (cell.x < best_cell.x or (cell.x == best_cell.x and cell.y < best_cell.y))
+			)
+		):
+			has_best = true
+			best_cell = cell
+			best_distance = distance
+
+	return {
+		"found": has_best,
+		"cell": best_cell,
+		"distance": best_distance,
+	}
+
+
+func _has_free_neighbor(coord: Vector2i) -> bool:
+	for direction_index in range(6):
+		_frontier_neighbor_checks_last_stall += 1
+		var candidate: Vector2i = coord + HexGridMath.direction(direction_index)
+		if _is_inside_map(candidate) and not cell_owners.has(candidate):
+			return true
+
+	return false
+
+
 func _is_inside_map(coord: Vector2i) -> bool:
 	return HexGridMath.distance(coord, Vector2i.ZERO) <= map_radius
 
@@ -205,6 +293,13 @@ func _reset_step_metrics() -> void:
 	_neighbor_checks_last_step = 0
 	_placement_validation_ms = 0.0
 	_changed_cells_last_step = 0
+	_reanchor_attempts_last_step = 0
+	_reanchors_last_step = 0
+	_frontier_scan_cells_last_stall = 0
+	_frontier_neighbor_checks_last_stall = 0
+	_last_reanchor_distance = -1
+	_stall_resolution_ms = 0.0
+	_permanent_stalls_last_step = 0
 
 
 func _elapsed_ms(start_usec: int) -> float:

@@ -221,6 +221,15 @@ func _update_hud(frame_ms: float) -> void:
 				sim_metrics["rejected_out_of_bounds_last_step"],
 				sim_metrics["changed_cells_last_step"],
 			]
+			+ "Sim reanchor: attempts %d | hits %d/%d | scan %d/%d | %.3f ms\n"
+			% [
+				sim_metrics["reanchor_attempts_last_step"],
+				sim_metrics["reanchors_last_step"],
+				sim_metrics["reanchors_total"],
+				sim_metrics["frontier_scan_cells_last_stall"],
+				sim_metrics["frontier_neighbor_checks_last_stall"],
+				sim_metrics["stall_resolution_ms"],
+			]
 			+ "Phases: bounds %.2f | candidates %.2f | lines %.2f | submit %.2f\n"
 			% [
 				metrics["bounds_ms"],

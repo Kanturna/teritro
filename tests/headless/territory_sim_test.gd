@@ -11,8 +11,12 @@ func _init() -> void:
 	_test_turn_rule_rejects_straight_continuation()
 	_test_occupied_and_out_of_bounds_rejections()
 	_test_stall_when_no_valid_neighbor()
+	_test_reanchor_after_local_stall()
+	_test_no_reanchor_without_stall()
 	_test_reset_restores_starter_state()
+	_test_reset_clears_reanchor_and_permanent_stall_totals()
 	_test_deterministic_sequence()
+	_test_reanchor_sequence_is_deterministic()
 
 	if _failures.is_empty():
 		print("TerritorySim tests passed.")
@@ -74,6 +78,45 @@ func _test_stall_when_no_valid_neighbor() -> void:
 	_assert_eq(metrics["stalled_colonies"], 1, "stalled metric")
 	_assert_eq(metrics["rejected_out_of_bounds_last_step"], 6, "all neighbors out of bounds")
 	_assert_eq(metrics["neighbor_checks_last_step"], 6, "stall checks all neighbors")
+	_assert_eq(metrics["permanent_stalls_last_step"], 1, "radius zero permanent stall")
+
+
+func _test_reanchor_after_local_stall() -> void:
+	var sim := _new_sim(3)
+	var blocked_cells := _blocked_origin_cells()
+	_apply_owned_cells(sim, blocked_cells, Vector2i.ZERO, 0)
+
+	_assert_eq(sim.step_colony(1), true, "reanchor step succeeds")
+
+	var state: Dictionary = sim.get_colony_debug_state(1)
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(metrics["reanchor_attempts_last_step"], 1, "reanchor attempted after local stall")
+	_assert_eq(metrics["reanchors_last_step"], 1, "reanchor succeeded")
+	_assert_eq(metrics["reanchors_total"], 1, "reanchor total")
+	_assert_eq(metrics["last_reanchor_distance"], 1, "nearest reanchor distance")
+	_assert_eq(
+		metrics["frontier_scan_cells_last_stall"] <= blocked_cells.size(),
+		true,
+		"reanchor scans only owned cells"
+	)
+	_assert_eq(
+		metrics["frontier_neighbor_checks_last_stall"] <= blocked_cells.size() * 6,
+		true,
+		"reanchor checks at most six neighbors per owned cell"
+	)
+	_assert_eq(state["last_placed_cell"], Vector2i(-1, -1), "tie-break anchor places first free cell")
+	_assert_eq(state["last_placement_direction"], 2, "direction reset allows first free direction")
+	_assert_eq(state["stalled"], false, "reanchor clears stall")
+
+
+func _test_no_reanchor_without_stall() -> void:
+	var sim := _new_sim(80)
+	for i in range(10):
+		_assert_eq(sim.step_colony(1), true, "normal step %d succeeds" % i)
+		var metrics: Dictionary = sim.get_debug_metrics()
+		_assert_eq(metrics["reanchor_attempts_last_step"], 0, "normal step no reanchor attempt")
+		_assert_eq(metrics["frontier_scan_cells_last_stall"], 0, "normal step no frontier scan")
+		_assert_eq(metrics["reanchors_total"], 0, "normal steps do not reanchor")
 
 
 func _test_reset_restores_starter_state() -> void:
@@ -90,6 +133,37 @@ func _test_reset_restores_starter_state() -> void:
 	_assert_eq(state["stalled"], false, "reset clears stall")
 	_assert_eq(metrics["owned_cells_total"], 1, "reset owned count")
 	_assert_eq(metrics["neighbor_checks_last_step"], 0, "reset clears step metrics")
+
+
+func _test_reset_clears_reanchor_and_permanent_stall_totals() -> void:
+	var reanchor_sim := _new_sim(3)
+	_apply_owned_cells(reanchor_sim, _blocked_origin_cells(), Vector2i.ZERO, 0)
+	_assert_eq(reanchor_sim.step_colony(1), true, "reset total test reanchor")
+	_assert_eq(
+		reanchor_sim.get_debug_metrics()["reanchors_total"],
+		1,
+		"reset total test has reanchor"
+	)
+	reanchor_sim.reset()
+	_assert_eq(
+		reanchor_sim.get_debug_metrics()["reanchors_total"],
+		0,
+		"reset clears reanchors total"
+	)
+
+	var stalled_sim := _new_sim(0)
+	_assert_eq(stalled_sim.step_colony(1), false, "reset total test permanent stall")
+	_assert_eq(
+		stalled_sim.get_debug_metrics()["permanent_stalls_total"],
+		1,
+		"reset total test has permanent stall"
+	)
+	stalled_sim.reset()
+	_assert_eq(
+		stalled_sim.get_debug_metrics()["permanent_stalls_total"],
+		0,
+		"reset clears permanent stalls total"
+	)
 
 
 func _test_deterministic_sequence() -> void:
@@ -114,11 +188,57 @@ func _test_deterministic_sequence() -> void:
 	_assert_eq(sequence_a, sequence_b, "identical sims produce identical sequence")
 
 
+func _test_reanchor_sequence_is_deterministic() -> void:
+	var sim_a := _new_sim(3)
+	var sim_b := _new_sim(3)
+	var blocked_cells := _blocked_origin_cells()
+	_apply_owned_cells(sim_a, blocked_cells, Vector2i.ZERO, 0)
+	_apply_owned_cells(sim_b, blocked_cells, Vector2i.ZERO, 0)
+	var sequence_a: Array[Vector2i] = []
+	var sequence_b: Array[Vector2i] = []
+
+	for _i in range(8):
+		_assert_eq(sim_a.step_colony(1), true, "reanchor deterministic sim A step")
+		_assert_eq(sim_b.step_colony(1), true, "reanchor deterministic sim B step")
+		sequence_a.append(sim_a.get_colony_debug_state(1)["last_placed_cell"])
+		sequence_b.append(sim_b.get_colony_debug_state(1)["last_placed_cell"])
+
+	_assert_eq(sim_a.get_debug_metrics()["reanchors_total"] >= 1, true, "deterministic test used reanchor")
+	_assert_eq(sequence_a, sequence_b, "reanchor sequence is deterministic")
+
+
 func _new_sim(radius: int) -> TerritorySim:
 	var sim := TerritorySim.new()
 	sim.configure(radius)
 	_assert_eq(sim.spawn_colony(1, Vector2i.ZERO), true, "spawn colony")
 	return sim
+
+
+func _blocked_origin_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = [Vector2i.ZERO]
+	for direction_index in range(6):
+		cells.append(HexGridMath.direction(direction_index))
+	return cells
+
+
+func _apply_owned_cells(
+	sim: TerritorySim,
+	cells: Array[Vector2i],
+	last_placed_cell: Vector2i,
+	last_placement_direction: int
+) -> void:
+	var colony = sim.colonies[1]
+	sim.cell_owners.clear()
+	colony.owned_cells.clear()
+
+	for cell in cells:
+		colony.owned_cells[cell] = true
+		sim.cell_owners[cell] = colony.id
+
+	colony.last_placed_cell = last_placed_cell
+	colony.last_placement_direction = last_placement_direction
+	colony.placements_total = maxi(0, cells.size() - 1)
+	colony.stalled = false
 
 
 func _assert_eq(actual, expected, label: String) -> void:
