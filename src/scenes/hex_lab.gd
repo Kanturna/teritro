@@ -330,7 +330,5 @@ func _get_grid_status(metrics: Dictionary) -> String:
 	match str(metrics["grid_hidden_reason"]):
 		"global_off":
 			return "off"
-		"zoom_lod":
-			return "hidden by LOD"
 		_:
 			return "hidden"

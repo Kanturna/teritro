@@ -42,6 +42,9 @@ a loose backlog.
 - If `grid_cache_rebuild_ms` exceeds 250 ms at radius 80, or grid-on zoom `1.0`
   exceeds a 16 ms 60-frame average draw target after Slice 8.3, re-evaluate the
   debug-grid renderer before adding more visual load.
+- If far-zoom grid-on views remain uncomfortable after Slice 8.3.1 while the
+  user still wants the grid visible at that distance, plan shader, TileMap, or
+  mesh-grid rendering instead of reintroducing LOD-based visibility hiding.
 - Before implementing multi-colony ticks, make changed-cell metrics accumulate
   multiple placements per tick instead of representing only one placement.
 - Before allowing nested enclosure patterns as a product requirement, decide
@@ -214,3 +217,15 @@ a loose backlog.
 - If the chunked grid still misses the soft zoom `0.7` frame-time target, the
   next renderer decision should be shader/TileMap/chunked-mesh evaluation, not
   another visibility workaround.
+
+### 2026-05-03 - Slice 8.3.1 grid toggle authority and AA stability decisions
+
+- `G` is the user-facing authority for debug-grid visibility. LOD no longer
+  hides the grid while `grid_visible` is enabled.
+- The previous Auto-AA line-point threshold could flip by camera position in
+  the chunked path. Grid antialiasing is pinned on by default; Auto-AA remains
+  an opt-in configuration path.
+- Far-zoom grid-on cost is accepted as user-controlled through `G`. If that
+  cost becomes uncomfortable in practical use, the next step is a real
+  shader/TileMap/mesh-grid renderer evaluation, not another hidden LOD
+  workaround.

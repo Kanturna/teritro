@@ -8,14 +8,14 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 8.3 - Chunked Debug Grid Renderer & Terrain Boundary v0.1
+Slice 8.3.1 - Debug Grid Toggle Authority & AA Stability v0.1
 
 ## Implemented (this slice)
 
-Replaced the Full-Grid candidate-cap workaround with a chunked debug-grid line
-cache. The grid now builds line geometry when map geometry changes, draws
-visible chunks during Full-LOD camera movement, and reports chunk/cache metrics
-instead of candidate-cap metrics.
+Made `G` the user-facing authority for debug-grid visibility. The grid now
+stays visible across LOD levels when enabled, remains hidden everywhere when
+disabled, and uses pinned antialiasing by default to avoid camera-position
+dependent line-weight changes.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -54,11 +54,12 @@ changes, remove old slice contents instead of growing this file into history.
 
 ## Validation
 
-Slice 8.3 changes debug-grid caching, HUD metrics, renderer tests, and
-documentation. Run the headless test suite, `git diff --check`, and a manual
-Godot editor check that grid-on pan stays stable at zoom `1.0`, grid visibility
-is position-independent at zoom `0.7`, zoom `0.65` hides the grid by LOD, and
-grid-off territory performance remains stable.
+Slice 8.3.1 changes debug-grid visibility policy, antialiasing defaults, HUD
+status, renderer tests, and documentation. Run the headless test suite,
+`git diff --check`, and a manual Godot editor check that `G on` shows the grid
+at zoom `1.0`, `0.7`, `0.65`, `0.6`, and `0.25`, `G off` hides it everywhere,
+line weight remains stable while panning, and far-zoom grid-on cost is
+documented honestly.
 
 ## State Rule
 

@@ -254,7 +254,16 @@ map, current owns the boundary edge. The cache reports
 `visible`, `drawn`, and `candidates` remain cell-count fields and are not
 repurposed as chunk counts.
 
+Slice 8.3.1 update: Debug-grid visibility now follows `grid_visible`, not LOD.
+The existing LOD branches remain as styling/performance extension points, but
+they no longer decide whether the grid is visible. `G` is the user-facing
+authority: when enabled, the grid draws at all zoom levels; when disabled, it
+is hidden everywhere. Chunked grid antialiasing is pinned on by default because
+the previous visible-line-count Auto-AA threshold could flip by camera position.
+Auto-AA remains available as an opt-in path if manual antialiasing is disabled.
+
 Re-evaluation trigger: Reassess if zoom `1.0` grid-on camera movement exceeds
 16 ms 60-frame average draw time, if zoom `0.7` stays visibly unstable after
-chunk caching, if `grid_cache_rebuild_ms` exceeds 250 ms at radius 80, or if
+chunk caching, if far-zoom grid-on cost remains uncomfortable despite being
+user-controlled, if `grid_cache_rebuild_ms` exceeds 250 ms at radius 80, or if
 the debug grid becomes product-facing terrain visualization.

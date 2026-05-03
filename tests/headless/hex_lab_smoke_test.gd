@@ -37,7 +37,7 @@ func _run() -> void:
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
 	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom draws cell grid")
 	_assert_eq(renderer.get_debug_metrics()["debug_axis_visible"], false, "debug axes hidden by default")
-	_assert_eq(renderer.get_debug_metrics()["grid_line_antialiased"], false, "grid lines antialiasing off by default")
+	_assert_eq(renderer.get_debug_metrics()["grid_line_antialiased"], true, "grid lines antialiasing pinned on by default")
 
 	camera.zoom = Vector2.ONE * 0.7
 	_assert_eq(renderer.get_current_lod_mode(), "full", "0.7 zoom uses full LOD")
@@ -45,15 +45,15 @@ func _run() -> void:
 
 	camera.zoom = Vector2.ONE * 0.65
 	_assert_eq(renderer.get_current_lod_mode(), "simple", "threshold zoom uses simple LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "threshold zoom hides cell grid by LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "threshold zoom keeps cell grid visible")
 
 	camera.zoom = Vector2.ONE * 0.6
 	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom uses simple LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "mid zoom hides cell grid by LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "mid zoom keeps cell grid visible")
 
 	camera.zoom = Vector2.ONE * 0.25
 	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom uses overview LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "min zoom hides cell grid by LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "min zoom keeps cell grid visible")
 
 	renderer.grid_visible = false
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], false, "grid visibility toggle off")

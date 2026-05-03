@@ -5,21 +5,24 @@ every idea.
 
 ## Current Slice
 
-Slice 8.3 - Chunked Debug Grid Renderer & Terrain Boundary v0.1
+Slice 8.3.1 - Debug Grid Toggle Authority & AA Stability v0.1
 
-## Slice 8.3 Exit Criteria
+## Slice 8.3.1 Exit Criteria
 
-- `docs/PLAN_SLICE_8_3.md` records the accepted reviewed plan.
-- The old Full-Grid candidate-cap path is removed from renderer code and tests.
-- Full-grid line geometry is cached in chunks and rebuilt only when map
-  geometry changes.
+- `docs/PLAN_SLICE_8_3_1.md` records the accepted reviewed plan.
+- `G on` shows the debug grid at zoom `1.0`, `0.7`, `0.65`, `0.6`, and `0.25`.
+- `G off` hides the debug grid at the same zooms.
+- Existing LOD branches remain, but LOD no longer decides grid visibility.
+- `needs_camera_redraw()` is true whenever the grid is visible.
+- `grid_line_antialiased` defaults to `true`; Auto-AA remains available as an
+  opt-in path when manual antialiasing is disabled.
 - `grid_chunk_size` defaults to `16`.
 - `simple_lod_zoom` is `0.65`; `overview_lod_zoom` remains `0.5`.
-- `grid_hidden_reason` reports `global_off`, `zoom_lod`, or `none`.
-- Headless tests cover chunk metrics, LOD boundary, position-independent grid
-  visibility, cache rebuild threshold, and snapshot additive fields.
-- ADR-007 documents that its renderer trigger fired; ADR-013 documents the
-  chunked debug-grid cache.
+- `grid_hidden_reason` reports `global_off` or `none` in normal behavior.
+- Headless tests cover grid on/off behavior across all five zooms, AA stability
+  across camera positions, chunk metrics, cache rebuild threshold, and snapshot
+  additive fields.
+- ADR-013 documents that debug-grid visibility follows `grid_visible`, not LOD.
 - `git diff --check` passes.
 
 ## Branching
@@ -30,9 +33,9 @@ second active developer joins or PR review becomes necessary.
 ## Proposed Slice 8.4 - Renderer Follow-Up Measurement v0.1
 
 - Manually measure grid off/on performance after chunked debug-grid caching at
-  zoom `1.0`, `0.7`, and `0.65` using JSON snapshots.
-- Decide whether grid-on zoom `0.7` needs shader/TileMap/chunked-mesh work if
-  submit cost still exceeds the soft `16 ms` target.
+  zoom `1.0`, `0.7`, `0.65`, `0.6`, and `0.25` using JSON snapshots.
+- Decide whether far-zoom grid-on views need shader/TileMap/chunked-mesh work
+  if submit cost is uncomfortable despite being user-controlled by `G`.
 - Keep future terrain/nature visuals separate from the debug grid and plan them
   as a batched, chunked, tiled, or shader-based renderer path when product
   terrain starts.

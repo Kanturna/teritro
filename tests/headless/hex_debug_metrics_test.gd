@@ -132,14 +132,15 @@ func _run() -> void:
 		metrics["line_points"] > 0 and metrics["line_points"] <= metrics["grid_cache_line_points_total"],
 		"full grid uses cached shared edges"
 	)
-	_assert_eq(metrics["grid_line_antialiased"], false, "manual grid antialiasing default")
-	_assert_eq(metrics["grid_line_effective_antialiased"], true, "auto antialiasing activates under line-point limit")
+	_assert_eq(metrics["grid_line_antialiased"], true, "grid antialiasing pinned on by default")
+	_assert_eq(metrics["grid_line_effective_antialiased"], true, "chunked grid antialiasing remains active")
 
 	_assert_camera_redraw_matrix(renderer, camera)
 	await _assert_owned_cell_batch_path(renderer, camera)
 	_assert_multimesh_preserves_per_colony_color(renderer)
 	await _assert_chunked_grid_cache(renderer, camera)
 	_assert_grid_position_independence(renderer, camera)
+	await _assert_grid_antialiasing_stability(renderer, camera)
 	_assert_snapshot_roundtrip(scene, debug_overlay, camera)
 
 	if _failures.is_empty():
@@ -161,11 +162,12 @@ func _send_key(target: Node, keycode: Key) -> void:
 
 func _assert_camera_redraw_matrix(renderer: Node, camera: Camera2D) -> void:
 	var cases := [
-		{"zoom": 0.25, "grid": true, "lod": "overview", "redraw": false},
+		{"zoom": 0.25, "grid": true, "lod": "overview", "redraw": true},
 		{"zoom": 0.25, "grid": false, "lod": "overview", "redraw": false},
-		{"zoom": 0.6, "grid": true, "lod": "simple", "redraw": false},
+		{"zoom": 0.6, "grid": true, "lod": "simple", "redraw": true},
 		{"zoom": 0.6, "grid": false, "lod": "simple", "redraw": false},
-		{"zoom": 0.65, "grid": true, "lod": "simple", "redraw": false},
+		{"zoom": 0.65, "grid": true, "lod": "simple", "redraw": true},
+		{"zoom": 0.65, "grid": false, "lod": "simple", "redraw": false},
 		{"zoom": 0.7, "grid": true, "lod": "full", "redraw": true},
 		{"zoom": 0.7, "grid": false, "lod": "full", "redraw": false},
 		{"zoom": 1.0, "grid": true, "lod": "full", "redraw": true},
@@ -260,7 +262,7 @@ func _assert_grid_position_independence(renderer: Node, camera: Camera2D) -> voi
 		Vector2(0.0, 1600.0),
 		Vector2(0.0, -1600.0),
 	]
-	for zoom in [1.0, 0.7]:
+	for zoom in [1.0, 0.7, 0.65, 0.6, 0.25]:
 		var has_expected := false
 		var expected_draw := false
 		var expected_reason := ""
@@ -283,8 +285,33 @@ func _assert_grid_position_independence(renderer: Node, camera: Camera2D) -> voi
 
 	renderer.grid_visible = true
 	camera.zoom = Vector2.ONE * 0.6
-	_assert_eq(renderer.will_draw_cell_grid(), false, "simple LOD hides grid")
-	_assert_eq(renderer.get_debug_metrics()["grid_hidden_reason"], "zoom_lod", "simple LOD hidden reason")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "simple LOD keeps grid visible")
+	_assert_eq(renderer.get_debug_metrics()["grid_hidden_reason"], "none", "simple LOD visible reason")
+
+
+func _assert_grid_antialiasing_stability(renderer: Node, camera: Camera2D) -> void:
+	var positions := [
+		Vector2.ZERO,
+		Vector2(1600.0, 0.0),
+		Vector2(-1600.0, 0.0),
+		Vector2(0.0, 1600.0),
+		Vector2(0.0, -1600.0),
+	]
+	for zoom in [1.0, 0.7]:
+		var has_expected := false
+		var expected := false
+		for position in positions:
+			camera.zoom = Vector2.ONE * zoom
+			camera.position = position
+			renderer.grid_visible = true
+			renderer.queue_redraw()
+			await process_frame
+			var effective: bool = renderer.get_debug_metrics()["grid_line_effective_antialiased"]
+			if not has_expected:
+				has_expected = true
+				expected = effective
+			_assert_eq(effective, expected, "AA stability zoom %.2f" % zoom)
+	_assert_eq(renderer.get_debug_metrics()["grid_line_antialiased"], true, "AA default remains pinned on")
 
 
 func _assert_snapshot_roundtrip(scene: Node, debug_overlay: Node, camera: Camera2D) -> void:

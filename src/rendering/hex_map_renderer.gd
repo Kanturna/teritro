@@ -21,7 +21,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var overview_line_screen_width := 1.5
 @export var map_outline_screen_width := 2.0
 @export var default_colony_color := Color(0.1, 0.36, 1.0, 0.45)
-@export var grid_line_antialiased := false
+@export var grid_line_antialiased := true
 @export var grid_line_auto_antialias := true
 @export var grid_antialias_line_point_limit := 40000
 @export var grid_chunk_size := 16:
@@ -155,9 +155,6 @@ func will_draw_cell_grid() -> bool:
 	if not grid_visible:
 		_grid_hidden_reason = "global_off"
 		return false
-	if get_current_lod_mode() != "full":
-		_grid_hidden_reason = "zoom_lod"
-		return false
 
 	_grid_hidden_reason = "none"
 	return true
@@ -196,38 +193,24 @@ func _draw() -> void:
 	_reset_draw_metrics()
 	_lod_mode = _get_lod_for_zoom(_get_camera_zoom())
 
-	if _lod_mode == "overview":
-		_update_grid_hidden_reason_for_lod(_lod_mode)
-		var overview_submit_start := Time.get_ticks_usec()
-		_draw_overview_map()
-		_submit_ms = _elapsed_ms(overview_submit_start)
-		_draw_ms = _elapsed_ms(start_usec)
-		return
-
-	if _lod_mode == "simple":
-		_update_grid_hidden_reason_for_lod(_lod_mode)
-		var simple_submit_start := Time.get_ticks_usec()
-		_draw_simple_map()
-		_submit_ms = _elapsed_ms(simple_submit_start)
-		_draw_ms = _elapsed_ms(start_usec)
-		return
-
-	if not will_draw_cell_grid():
-		var hidden_submit_start := Time.get_ticks_usec()
-		_draw_map_outline()
-		_draw_debug_axis_lines()
-		_submit_ms = _elapsed_ms(hidden_submit_start)
-		_draw_ms = _elapsed_ms(start_usec)
-		return
-
-	var bounds_start := Time.get_ticks_usec()
-	var visible_rect := _get_visible_local_rect()
-	_bounds_ms = _elapsed_ms(bounds_start)
+	var draw_grid := will_draw_cell_grid()
+	var visible_rect := Rect2()
+	if draw_grid:
+		var bounds_start := Time.get_ticks_usec()
+		visible_rect = _get_visible_local_rect()
+		_bounds_ms = _elapsed_ms(bounds_start)
 
 	var submit_start := Time.get_ticks_usec()
-	_draw_map_outline()
-	_draw_debug_axis_lines()
-	_draw_grid_chunks(visible_rect)
+	if _lod_mode == "overview":
+		_draw_overview_map()
+	elif _lod_mode == "simple":
+		_draw_simple_map()
+	else:
+		_draw_map_outline()
+		_draw_debug_axis_lines()
+
+	if draw_grid:
+		_draw_grid_chunks(visible_rect)
 	_submit_ms = _elapsed_ms(submit_start)
 
 	_draw_ms = _elapsed_ms(start_usec)
@@ -283,15 +266,6 @@ func _should_antialias_grid_lines() -> bool:
 	if grid_line_antialiased:
 		return true
 	return grid_line_auto_antialias and _line_point_count <= grid_antialias_line_point_limit
-
-
-func _update_grid_hidden_reason_for_lod(lod: String) -> void:
-	if not grid_visible:
-		_grid_hidden_reason = "global_off"
-	elif lod != "full":
-		_grid_hidden_reason = "zoom_lod"
-	else:
-		_grid_hidden_reason = "none"
 
 
 func _draw_grid_chunks(visible_rect: Rect2) -> void:
