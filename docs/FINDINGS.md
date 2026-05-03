@@ -63,3 +63,5 @@ a loose backlog.
   regressed draw time.
 - Kept the map outline visible when the cell grid is hidden by LOD or toggled
   off, so the lab still has orientation on a white background.
+- Deduplicated shared full-grid edges so interior hex lines render with more
+  even weight and fewer line points.

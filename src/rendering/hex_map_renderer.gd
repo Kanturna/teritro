@@ -17,7 +17,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var axis_color := Color(0.0, 0.0, 0.0, 0.35)
 @export var simple_lod_zoom := 0.75
 @export var overview_lod_zoom := 0.5
-@export var grid_line_screen_width := 1.2
+@export var grid_line_screen_width := 1.0
 @export var overview_line_screen_width := 1.5
 @export var map_outline_screen_width := 2.0
 @export var grid_line_antialiased := false
@@ -37,7 +37,9 @@ var _map_outline_segments := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
 var _grid_line_points := PackedVector2Array()
 var _visible_centers := PackedVector2Array()
+var _visible_coords: Array[Vector2i] = []
 var _visible_corners: Array[Vector2] = []
+var _visible_coord_lookup := {}
 var _hexes: Array[Vector2i] = []
 var _visible_hex_count := 0
 var _drawn_hex_count := 0
@@ -156,7 +158,7 @@ func _draw() -> void:
 	_candidate_ms = _elapsed_ms(candidate_start)
 
 	var line_build_start := Time.get_ticks_usec()
-	_build_grid_lines_from_visible_centers()
+	_build_grid_lines_from_visible_cells()
 	_line_build_ms = _elapsed_ms(line_build_start)
 
 	var submit_start := Time.get_ticks_usec()
@@ -213,6 +215,8 @@ func _collect_visible_centers(bounds: Rect2i, visible_rect: Rect2) -> void:
 	var max_candidate_count := maxi(0, q_count * r_count)
 	_candidate_hex_count = max_candidate_count
 	_visible_centers.resize(max_candidate_count)
+	_visible_coords.resize(max_candidate_count)
+	_visible_coord_lookup.clear()
 
 	var visible_index := 0
 	for q in range(bounds.position.x, bounds.end.x + 1):
@@ -227,30 +231,45 @@ func _collect_visible_centers(bounds: Rect2i, visible_rect: Rect2) -> void:
 				continue
 
 			_visible_centers[visible_index] = center
+			_visible_coords[visible_index] = coord
+			_visible_coord_lookup[coord] = true
 			visible_index += 1
 			_visible_hex_count += 1
 			_drawn_hex_count += 1
 
 	_visible_centers.resize(visible_index)
+	_visible_coords.resize(visible_index)
 
 
-func _build_grid_lines_from_visible_centers() -> void:
-	_line_point_count = _visible_centers.size() * 12
-	_grid_line_points.resize(_line_point_count)
+func _build_grid_lines_from_visible_cells() -> void:
+	_grid_line_points.resize(_visible_coords.size() * 12)
 
 	var point_index := 0
-	for center in _visible_centers:
-		_write_hex_lines(center, point_index)
-		point_index += 12
+	for i in range(_visible_coords.size()):
+		var coord: Vector2i = _visible_coords[i]
+		var center: Vector2 = _visible_centers[i]
+		for direction_index in range(6):
+			var neighbor: Vector2i = coord + HexGridMath.direction(direction_index)
+			if _visible_coord_lookup.has(neighbor) and _is_coord_before(neighbor, coord):
+				continue
+
+			var edge_index := 5 - direction_index
+			_write_edge_line(center, edge_index, point_index)
+			point_index += 2
+
+	_line_point_count = point_index
+	_grid_line_points.resize(_line_point_count)
 
 
-func _write_hex_lines(center: Vector2, start_index: int) -> void:
-	for i in range(6):
-		var point_a := center + _base_polygon[i]
-		var point_b := center + _base_polygon[(i + 1) % 6]
-		var point_index := start_index + i * 2
-		_grid_line_points[point_index] = point_a
-		_grid_line_points[point_index + 1] = point_b
+func _write_edge_line(center: Vector2, edge_index: int, point_index: int) -> void:
+	_grid_line_points[point_index] = center + _base_polygon[edge_index]
+	_grid_line_points[point_index + 1] = center + _base_polygon[(edge_index + 1) % 6]
+
+
+func _is_coord_before(a: Vector2i, b: Vector2i) -> bool:
+	if a.x == b.x:
+		return a.y < b.y
+	return a.x < b.x
 
 
 func _draw_overview_map() -> void:

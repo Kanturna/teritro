@@ -60,7 +60,14 @@ func _run() -> void:
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], true, "G toggles grid back on")
 
 	camera.zoom = Vector2.ONE
+	renderer.queue_redraw()
+	await process_frame
+	metrics = renderer.get_debug_metrics()
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
+	_assert_true(
+		metrics["line_points"] > 0 and metrics["line_points"] < metrics["drawn"] * 12,
+		"full grid uses deduplicated shared edges"
+	)
 
 	camera.zoom = Vector2.ONE * 0.6
 	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom uses simple LOD")
@@ -90,3 +97,8 @@ func _send_key(target: Node, keycode: Key) -> void:
 func _assert_eq(actual, expected, label: String) -> void:
 	if actual != expected:
 		_failures.append("%s: expected %s, got %s" % [label, expected, actual])
+
+
+func _assert_true(condition: bool, label: String) -> void:
+	if not condition:
+		_failures.append("%s: expected true" % label)
