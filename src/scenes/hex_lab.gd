@@ -225,13 +225,11 @@ func _update_hud(frame_ms: float) -> void:
 			sim_metrics["placements_total"],
 			sim_metrics["stalled_colonies"],
 		]
-		+ "LOD: %s | Visible: %d | Drawn: %d\n"
-		% [metrics["lod"], metrics["visible"], metrics["drawn"]]
-		+ "Candidates: %d | Cull M/V: %d/%d | Lines: %d\n"
+		+ "LOD: %s | Grid chunks: %d/%d | Lines: %d\n"
 		% [
-			metrics["candidates"],
-			metrics["culled_map"],
-			metrics["culled_view"],
+			metrics["lod"],
+			metrics["grid_chunks_visible"],
+			metrics["grid_chunks_total"],
 			metrics["line_points"],
 		]
 		+ "Draw calls: %d | Draw: %.2f ms | Submit: %.2f ms\n"
@@ -290,13 +288,21 @@ func _update_hud(frame_ms: float) -> void:
 				metrics["line_build_ms"],
 				metrics["submit_ms"],
 			]
-			+ "Render batch: %s | instances %d | rebuild %.3f ms | grid cap %d/%d\n"
+			+ "Render batch: %s | instances %d | rebuild %.3f ms\n"
 			% [
 				metrics["owned_render_mode"],
 				metrics["owned_batch_instances"],
 				metrics["owned_batch_rebuild_ms"],
-				metrics["estimated_full_grid_candidates"],
-				metrics["full_grid_candidate_limit"],
+			]
+			+ "Grid cache: chunk %d | visible %d/%d | lines %d/%d | rebuild %.3f ms | reason %s\n"
+			% [
+				metrics["grid_chunk_size"],
+				metrics["grid_chunks_visible"],
+				metrics["grid_chunks_total"],
+				metrics["grid_visible_line_points"],
+				metrics["grid_cache_line_points_total"],
+				metrics["grid_cache_rebuild_ms"],
+				metrics["grid_hidden_reason"],
 			]
 			+ "Draw 60f min/avg/max: %.2f / %.2f / %.2f ms | AA: %s\n"
 			% [
@@ -319,10 +325,12 @@ func _update_hud(frame_ms: float) -> void:
 
 
 func _get_grid_status(metrics: Dictionary) -> String:
-	if not metrics["grid_visible"]:
-		return "off"
 	if metrics["cell_grid_drawn"]:
 		return "drawn"
-	if metrics["grid_suppressed_by_limit"]:
-		return "hidden by cap"
-	return "hidden by LOD"
+	match str(metrics["grid_hidden_reason"]):
+		"global_off":
+			return "off"
+		"zoom_lod":
+			return "hidden by LOD"
+		_:
+			return "hidden"

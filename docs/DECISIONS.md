@@ -113,6 +113,11 @@ zoom 1.0 stays above 16 ms draw time, if overview/simple LOD loses orientation
 or line readability, if ownership colors require per-cell rendering, or if map
 radius above 80 becomes a product requirement.
 
+Slice 8.3 update: User measurements after Slice 8.2 showed the full-grid
+renderer still exceeded the 16 ms target during grid-on camera movement. This
+fired ADR-007's renderer re-evaluation trigger. Slice 8.3 answers it with a
+chunked debug-grid line cache instead of another candidate-cap workaround.
+
 ## ADR-008: Sparse Event-Local Simulation Work
 
 Decision: Map size is capacity, not automatic simulation workload.
@@ -200,11 +205,10 @@ state, if `owned_batch_rebuild_ms` consistently exceeds 5 ms, if owned cells
 exceed about 10000, or if multi-colony rendering needs a different visual
 stacking or update strategy.
 
-Slice 8.2 update: `full_grid_candidate_limit` was lowered from `6000` to
-`3000` after user measurement showed roughly `5300` Full-Grid candidates and
-about `31 FPS` at zoom around `0.87`. Default zoom `1.0` remains below the cap.
-Reassess the value if default zoom is accidentally suppressed or if grid-on
-views become product-relevant.
+Slice 8.3 update: the Slice 8.2 `full_grid_candidate_limit` workaround was
+removed from the renderer. Owned-cell MultiMesh rendering remains unchanged,
+while full-grid debug lines now use a chunked line cache. ADR-011 continues to
+cover owned-cell batching; ADR-013 covers the debug-grid cache.
 
 ## ADR-012: Debug Snapshots As Performance Evidence
 
@@ -225,3 +229,32 @@ do not change simulation truth.
 Re-evaluation trigger: Reassess the schema before multi-colony, AI, units, or
 external comparison tooling require structured per-colony, per-agent, or
 scenario metadata that the v1 schema cannot represent clearly.
+
+Slice 8.3 update: snapshot schema version remains `1`. Grid-cache metrics are
+additive fields on the existing renderer provider payload.
+
+## ADR-013: Chunked Debug-Grid Line Cache
+
+Decision: The debug cell grid uses cached line chunks for Full-LOD rendering.
+
+Reason: The grid is an orientation and debugging tool, not the future terrain
+renderer, but it must remain usable while the user builds and inspects the
+world. Candidate caps hid the grid in valid working views; chunk caching
+addresses the structural cost by removing per-frame line construction during
+camera movement.
+
+Implementation rule: `HexMapRenderer` builds grid line geometry in chunks of
+`grid_chunk_size = 16` when map geometry changes. Camera movement draws only
+visible cached chunks. Edge ownership is deterministic: if an in-map neighbor
+is lexicographically before the current cell, skip the edge; if the neighbor is
+after the current cell, current owns the edge; if the neighbor is outside the
+map, current owns the boundary edge. The cache reports
+`grid_render_mode = "chunked_lines"`, chunk counts, visible line points,
+`grid_cache_rebuild_ms`, and `grid_hidden_reason`. Legacy renderer metrics
+`visible`, `drawn`, and `candidates` remain cell-count fields and are not
+repurposed as chunk counts.
+
+Re-evaluation trigger: Reassess if zoom `1.0` grid-on camera movement exceeds
+16 ms 60-frame average draw time, if zoom `0.7` stays visibly unstable after
+chunk caching, if `grid_cache_rebuild_ms` exceeds 250 ms at radius 80, or if
+the debug grid becomes product-facing terrain visualization.

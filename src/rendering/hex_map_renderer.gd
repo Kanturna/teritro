@@ -15,7 +15,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var fill_color := Color.WHITE
 @export var outline_color := Color(0.0, 0.0, 0.0, 0.95)
 @export var axis_color := Color(0.0, 0.0, 0.0, 0.35)
-@export var simple_lod_zoom := 0.75
+@export var simple_lod_zoom := 0.65
 @export var overview_lod_zoom := 0.5
 @export var grid_line_screen_width := 1.0
 @export var overview_line_screen_width := 1.5
@@ -24,7 +24,12 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var grid_line_antialiased := false
 @export var grid_line_auto_antialias := true
 @export var grid_antialias_line_point_limit := 40000
-@export var full_grid_candidate_limit := 3000
+@export var grid_chunk_size := 16:
+	set(value):
+		grid_chunk_size = maxi(1, value)
+		_rebuild_grid_cache()
+		if is_inside_tree():
+			queue_redraw()
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -39,18 +44,17 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 var _base_polygon := PackedVector2Array()
 var _map_outline_segments := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
-var _grid_line_points := PackedVector2Array()
 var _owned_cells: Dictionary = {}
 var _colony_colors: Dictionary = {}
 var _owned_cells_batch: MultiMeshInstance2D
 var _owned_cell_mesh: ArrayMesh
 var _owned_cell_texture: ImageTexture
 var _owned_batch_colors := PackedColorArray()
-var _visible_centers := PackedVector2Array()
-var _visible_coords: Array[Vector2i] = []
 var _visible_corners: Array[Vector2] = []
-var _visible_coord_lookup := {}
 var _hexes: Array[Vector2i] = []
+var _grid_chunks := {}
+var _grid_chunk_entries: Array[Dictionary] = []
+var _visible_grid_chunk_entries: Array[Dictionary] = []
 var _visible_hex_count := 0
 var _drawn_hex_count := 0
 var _candidate_hex_count := 0
@@ -70,8 +74,12 @@ var _owned_cells_drawn := 0
 var _owned_batch_instances := 0
 var _owned_batch_rebuild_ms := 0.0
 var _owned_batch_draw_calls := 0
-var _grid_suppressed_by_limit := false
-var _estimated_full_grid_candidates := 0
+var _grid_hidden_reason := "none"
+var _grid_chunks_total := 0
+var _grid_chunks_visible := 0
+var _grid_cache_line_points_total := 0
+var _grid_visible_line_points := 0
+var _grid_cache_rebuild_ms := 0.0
 
 
 func _ready() -> void:
@@ -120,9 +128,14 @@ func get_debug_metrics() -> Dictionary:
 		"owned_batch_instances": _owned_batch_instances,
 		"owned_batch_rebuild_ms": _owned_batch_rebuild_ms,
 		"owned_batch_draw_calls": _owned_batch_draw_calls,
-		"full_grid_candidate_limit": full_grid_candidate_limit,
-		"grid_suppressed_by_limit": _grid_suppressed_by_limit,
-		"estimated_full_grid_candidates": _estimated_full_grid_candidates,
+		"grid_render_mode": "chunked_lines",
+		"grid_chunk_size": grid_chunk_size,
+		"grid_chunks_total": _grid_chunks_total,
+		"grid_chunks_visible": _grid_chunks_visible,
+		"grid_cache_line_points_total": _grid_cache_line_points_total,
+		"grid_visible_line_points": _grid_visible_line_points,
+		"grid_cache_rebuild_ms": _grid_cache_rebuild_ms,
+		"grid_hidden_reason": _grid_hidden_reason,
 	}
 
 
@@ -139,17 +152,15 @@ func get_current_lod_mode() -> String:
 
 
 func will_draw_cell_grid() -> bool:
-	if not grid_visible or get_current_lod_mode() != "full":
-		_grid_suppressed_by_limit = false
-		_estimated_full_grid_candidates = 0
+	if not grid_visible:
+		_grid_hidden_reason = "global_off"
+		return false
+	if get_current_lod_mode() != "full":
+		_grid_hidden_reason = "zoom_lod"
 		return false
 
-	_estimated_full_grid_candidates = _estimate_full_grid_candidate_count()
-	_grid_suppressed_by_limit = (
-		full_grid_candidate_limit > 0
-		and _estimated_full_grid_candidates > full_grid_candidate_limit
-	)
-	return not _grid_suppressed_by_limit
+	_grid_hidden_reason = "none"
+	return true
 
 
 func needs_camera_redraw() -> bool:
@@ -186,6 +197,7 @@ func _draw() -> void:
 	_lod_mode = _get_lod_for_zoom(_get_camera_zoom())
 
 	if _lod_mode == "overview":
+		_update_grid_hidden_reason_for_lod(_lod_mode)
 		var overview_submit_start := Time.get_ticks_usec()
 		_draw_overview_map()
 		_submit_ms = _elapsed_ms(overview_submit_start)
@@ -193,6 +205,7 @@ func _draw() -> void:
 		return
 
 	if _lod_mode == "simple":
+		_update_grid_hidden_reason_for_lod(_lod_mode)
 		var simple_submit_start := Time.get_ticks_usec()
 		_draw_simple_map()
 		_submit_ms = _elapsed_ms(simple_submit_start)
@@ -208,31 +221,13 @@ func _draw() -> void:
 		return
 
 	var bounds_start := Time.get_ticks_usec()
-	var bounds := _get_visible_axial_bounds()
 	var visible_rect := _get_visible_local_rect()
 	_bounds_ms = _elapsed_ms(bounds_start)
-
-	var candidate_start := Time.get_ticks_usec()
-	_collect_visible_centers(bounds, visible_rect)
-	_candidate_ms = _elapsed_ms(candidate_start)
-
-	var line_build_start := Time.get_ticks_usec()
-	_build_grid_lines_from_visible_cells()
-	_line_build_ms = _elapsed_ms(line_build_start)
 
 	var submit_start := Time.get_ticks_usec()
 	_draw_map_outline()
 	_draw_debug_axis_lines()
-	if _line_point_count > 0:
-		_grid_line_effective_antialiased = _should_antialias_grid_lines()
-		draw_multiline(
-			_grid_line_points,
-			outline_color,
-			_get_screen_stable_line_width(grid_line_screen_width),
-			_grid_line_effective_antialiased
-		)
-		_draw_call_estimate += 1
-		_cell_grid_drawn = true
+	_draw_grid_chunks(visible_rect)
 	_submit_ms = _elapsed_ms(submit_start)
 
 	_draw_ms = _elapsed_ms(start_usec)
@@ -254,13 +249,15 @@ func _reset_draw_metrics() -> void:
 	_cell_grid_drawn = false
 	_grid_line_effective_antialiased = false
 	_owned_cells_drawn = _owned_batch_instances
-	_grid_suppressed_by_limit = false
-	_estimated_full_grid_candidates = 0
+	_grid_hidden_reason = "none"
+	_grid_chunks_visible = 0
+	_grid_visible_line_points = 0
 
 
 func _rebuild_map() -> void:
 	_hexes = HexGridMath.coords_in_radius(map_radius)
 	_map_outline_segments = _build_map_outline_segments()
+	_rebuild_grid_cache()
 	if is_inside_tree():
 		queue_redraw()
 
@@ -270,66 +267,10 @@ func _rebuild_polygon() -> void:
 	_rebuild_owned_cell_mesh()
 	_map_outline_segments = _build_map_outline_segments()
 	_scratch_polygon.resize(6)
+	_rebuild_grid_cache()
 	_rebuild_owned_cells_batch()
 	if is_inside_tree():
 		queue_redraw()
-
-
-func _collect_visible_centers(bounds: Rect2i, visible_rect: Rect2) -> void:
-	var q_count := bounds.end.x - bounds.position.x + 1
-	var r_count := bounds.end.y - bounds.position.y + 1
-	var max_candidate_count := maxi(0, q_count * r_count)
-	_candidate_hex_count = max_candidate_count
-	_visible_centers.resize(max_candidate_count)
-	_visible_coords.resize(max_candidate_count)
-	_visible_coord_lookup.clear()
-
-	var visible_index := 0
-	for q in range(bounds.position.x, bounds.end.x + 1):
-		for r in range(bounds.position.y, bounds.end.y + 1):
-			var coord := Vector2i(q, r)
-			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
-			if not _is_inside_map(coord):
-				_culled_by_map_count += 1
-				continue
-			if not _hex_rect_intersects_view(center, visible_rect):
-				_culled_by_view_count += 1
-				continue
-
-			_visible_centers[visible_index] = center
-			_visible_coords[visible_index] = coord
-			_visible_coord_lookup[coord] = true
-			visible_index += 1
-			_visible_hex_count += 1
-			_drawn_hex_count += 1
-
-	_visible_centers.resize(visible_index)
-	_visible_coords.resize(visible_index)
-
-
-func _build_grid_lines_from_visible_cells() -> void:
-	_grid_line_points.resize(_visible_coords.size() * 12)
-
-	var point_index := 0
-	for i in range(_visible_coords.size()):
-		var coord: Vector2i = _visible_coords[i]
-		var center: Vector2 = _visible_centers[i]
-		for direction_index in range(6):
-			var neighbor: Vector2i = coord + HexGridMath.direction(direction_index)
-			if _visible_coord_lookup.has(neighbor) and _is_coord_before(neighbor, coord):
-				continue
-
-			var edge_index := 5 - direction_index
-			_write_edge_line(center, edge_index, point_index)
-			point_index += 2
-
-	_line_point_count = point_index
-	_grid_line_points.resize(_line_point_count)
-
-
-func _write_edge_line(center: Vector2, edge_index: int, point_index: int) -> void:
-	_grid_line_points[point_index] = center + _base_polygon[edge_index]
-	_grid_line_points[point_index + 1] = center + _base_polygon[(edge_index + 1) % 6]
 
 
 func _is_coord_before(a: Vector2i, b: Vector2i) -> bool:
@@ -342,6 +283,123 @@ func _should_antialias_grid_lines() -> bool:
 	if grid_line_antialiased:
 		return true
 	return grid_line_auto_antialias and _line_point_count <= grid_antialias_line_point_limit
+
+
+func _update_grid_hidden_reason_for_lod(lod: String) -> void:
+	if not grid_visible:
+		_grid_hidden_reason = "global_off"
+	elif lod != "full":
+		_grid_hidden_reason = "zoom_lod"
+	else:
+		_grid_hidden_reason = "none"
+
+
+func _draw_grid_chunks(visible_rect: Rect2) -> void:
+	_visible_grid_chunk_entries.clear()
+	_grid_chunks_visible = 0
+	_grid_visible_line_points = 0
+
+	for entry in _grid_chunk_entries:
+		var bounds: Rect2 = entry["bounds"]
+		if not bounds.intersects(visible_rect):
+			continue
+		_visible_grid_chunk_entries.append(entry)
+		_grid_chunks_visible += 1
+		_grid_visible_line_points += int(entry["line_points"])
+
+	_line_point_count = _grid_visible_line_points
+	# The chunked grid path reports chunk workload through explicit grid_* keys.
+	# Keep legacy cell counters at zero instead of silently changing their unit.
+	_visible_hex_count = 0
+	_drawn_hex_count = 0
+	_candidate_hex_count = 0
+
+	if _line_point_count == 0:
+		return
+
+	_grid_line_effective_antialiased = _should_antialias_grid_lines()
+	var line_width := _get_screen_stable_line_width(grid_line_screen_width)
+	for entry in _visible_grid_chunk_entries:
+		var points: PackedVector2Array = entry["points"]
+		if points.is_empty():
+			continue
+		draw_multiline(points, outline_color, line_width, _grid_line_effective_antialiased)
+		_draw_call_estimate += 1
+	_cell_grid_drawn = true
+
+
+func _rebuild_grid_cache() -> void:
+	var start_usec := Time.get_ticks_usec()
+	_grid_chunks.clear()
+	_grid_chunk_entries.clear()
+	_visible_grid_chunk_entries.clear()
+	_grid_chunks_total = 0
+	_grid_chunks_visible = 0
+	_grid_cache_line_points_total = 0
+	_grid_visible_line_points = 0
+
+	if _base_polygon.size() != 6 or _hexes.is_empty():
+		_grid_cache_rebuild_ms = _elapsed_ms(start_usec)
+		return
+
+	for coord in _hexes:
+		var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
+		var chunk_key := _get_grid_chunk_key(coord)
+		for direction_index in range(6):
+			var neighbor: Vector2i = coord + HexGridMath.direction(direction_index)
+			if _is_inside_map(neighbor) and _is_coord_before(neighbor, coord):
+				continue
+
+			var edge_index := 5 - direction_index
+			var start_point: Vector2 = center + _base_polygon[edge_index]
+			var end_point: Vector2 = center + _base_polygon[(edge_index + 1) % 6]
+			_add_grid_chunk_edge(chunk_key, start_point, end_point)
+
+	for chunk_key in _grid_chunks.keys():
+		var chunk: Dictionary = _grid_chunks[chunk_key]
+		var points_array: Array = chunk["points"]
+		var points := PackedVector2Array()
+		points.resize(points_array.size())
+		for point_index in range(points_array.size()):
+			points[point_index] = points_array[point_index]
+
+		var entry := {
+			"key": chunk_key,
+			"points": points,
+			"bounds": chunk["bounds"],
+			"line_points": points.size(),
+		}
+		_grid_chunk_entries.append(entry)
+		_grid_cache_line_points_total += points.size()
+
+	_grid_chunks_total = _grid_chunk_entries.size()
+	_grid_cache_rebuild_ms = _elapsed_ms(start_usec)
+
+
+func _get_grid_chunk_key(coord: Vector2i) -> Vector2i:
+	var chunk_size := maxi(grid_chunk_size, 1)
+	return Vector2i(
+		floori(float(coord.x) / float(chunk_size)),
+		floori(float(coord.y) / float(chunk_size))
+	)
+
+
+func _add_grid_chunk_edge(chunk_key: Vector2i, start_point: Vector2, end_point: Vector2) -> void:
+	if not _grid_chunks.has(chunk_key):
+		_grid_chunks[chunk_key] = {
+			"points": [],
+			"bounds": Rect2(start_point, Vector2.ZERO),
+		}
+
+	var chunk: Dictionary = _grid_chunks[chunk_key]
+	var points: Array = chunk["points"]
+	points.append(start_point)
+	points.append(end_point)
+
+	var bounds: Rect2 = chunk["bounds"]
+	bounds = bounds.expand(start_point)
+	bounds = bounds.expand(end_point)
+	chunk["bounds"] = bounds
 
 
 func _ensure_owned_cells_batch() -> void:
@@ -597,19 +655,6 @@ func _get_visible_axial_bounds() -> Rect2i:
 		Vector2i(min_q, min_r),
 		Vector2i(max_q - min_q, max_r - min_r)
 	)
-
-
-func _estimate_full_grid_candidate_count() -> int:
-	var bounds := _get_visible_axial_bounds()
-	var visible_rect := _get_visible_local_rect()
-	var count := 0
-	for q in range(bounds.position.x, bounds.end.x + 1):
-		for r in range(bounds.position.y, bounds.end.y + 1):
-			var coord := Vector2i(q, r)
-			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
-			if _is_inside_map(coord) and _hex_rect_intersects_view(center, visible_rect):
-				count += 1
-	return count
 
 
 func _elapsed_ms(start_usec: int) -> float:

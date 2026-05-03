@@ -34,8 +34,14 @@ a loose backlog.
   MultiMesh updates that apply only changed cells instead of rebuilding the
   entire batch.
 - Before grid-on zoom-out views become product-relevant, decide whether the
-  debug grid should move to shader, chunked mesh, TileMapLayer, or another
-  non-`_draw()` render path.
+  debug grid should move from chunked cached lines to shader, TileMapLayer,
+  chunked mesh, or another non-`_draw()` render path.
+- Before terrain/nature visuals begin, plan a production renderer path that is
+  separate from the debug grid and can support grass, mountains, rivers, and
+  other world visuals through batched, chunked, tiled, or shader-based drawing.
+- If `grid_cache_rebuild_ms` exceeds 250 ms at radius 80, or grid-on zoom `1.0`
+  exceeds a 16 ms 60-frame average draw target after Slice 8.3, re-evaluate the
+  debug-grid renderer before adding more visual load.
 - Before implementing multi-colony ticks, make changed-cell metrics accumulate
   multiple placements per tick instead of representing only one placement.
 - Before allowing nested enclosure patterns as a product requirement, decide
@@ -196,3 +202,15 @@ a loose backlog.
   architectural options before Quality Gates are drafted, and a fired ADR
   re-evaluation trigger now explicitly signals that the workaround tier is
   exhausted.
+
+### 2026-05-03 - Slice 8.3 chunked debug-grid decision
+
+- The Slice 8.2 candidate-cap workaround is superseded by a chunked debug-grid
+  line cache. Grid visibility should not vary by camera position at the same
+  zoom.
+- The debug grid remains an inspection/orientation layer. Future grass,
+  mountain, river, and terrain visuals must use a separate production-oriented
+  rendering path.
+- If the chunked grid still misses the soft zoom `0.7` frame-time target, the
+  next renderer decision should be shader/TileMap/chunked-mesh evaluation, not
+  another visibility workaround.

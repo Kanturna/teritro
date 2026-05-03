@@ -59,9 +59,14 @@ func _run() -> void:
 		"owned_batch_instances",
 		"owned_batch_rebuild_ms",
 		"owned_batch_draw_calls",
-		"full_grid_candidate_limit",
-		"grid_suppressed_by_limit",
-		"estimated_full_grid_candidates",
+		"grid_render_mode",
+		"grid_chunk_size",
+		"grid_chunks_total",
+		"grid_chunks_visible",
+		"grid_cache_line_points_total",
+		"grid_visible_line_points",
+		"grid_cache_rebuild_ms",
+		"grid_hidden_reason",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)
 	_assert_eq(metrics["map_outline_segments"], 966, "radius 80 map outline segment count")
@@ -69,6 +74,11 @@ func _run() -> void:
 	_assert_eq(metrics["owned_render_mode"], "multimesh", "owned cell render mode")
 	_assert_eq(metrics["owned_batch_instances"], 1, "starter owned batch instances")
 	_assert_eq(metrics["owned_batch_draw_calls"], 1, "starter owned batch draw call estimate")
+	_assert_eq(metrics["grid_render_mode"], "chunked_lines", "grid render mode")
+	_assert_eq(metrics["grid_chunk_size"], 16, "grid chunk size")
+	_assert_true(metrics["grid_chunks_total"] > 0, "grid cache has chunks")
+	_assert_eq(metrics["grid_cache_line_points_total"], 117612, "radius 80 unique grid line points")
+	_assert_true(metrics["grid_cache_rebuild_ms"] <= 250.0, "grid cache rebuild under 250 ms")
 
 	var sim_metrics: Dictionary = debug_overlay.get_provider_metrics("simulation")
 	for key in [
@@ -119,16 +129,17 @@ func _run() -> void:
 	metrics = renderer.get_debug_metrics()
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
 	_assert_true(
-		metrics["line_points"] > 0 and metrics["line_points"] < metrics["drawn"] * 12,
-		"full grid uses deduplicated shared edges"
+		metrics["line_points"] > 0 and metrics["line_points"] <= metrics["grid_cache_line_points_total"],
+		"full grid uses cached shared edges"
 	)
 	_assert_eq(metrics["grid_line_antialiased"], false, "manual grid antialiasing default")
 	_assert_eq(metrics["grid_line_effective_antialiased"], true, "auto antialiasing activates under line-point limit")
 
 	_assert_camera_redraw_matrix(renderer, camera)
 	await _assert_owned_cell_batch_path(renderer, camera)
-	await _assert_multimesh_preserves_per_colony_color(renderer)
-	_assert_grid_candidate_cap(renderer, camera)
+	_assert_multimesh_preserves_per_colony_color(renderer)
+	await _assert_chunked_grid_cache(renderer, camera)
+	_assert_grid_position_independence(renderer, camera)
 	_assert_snapshot_roundtrip(scene, debug_overlay, camera)
 
 	if _failures.is_empty():
@@ -154,6 +165,9 @@ func _assert_camera_redraw_matrix(renderer: Node, camera: Camera2D) -> void:
 		{"zoom": 0.25, "grid": false, "lod": "overview", "redraw": false},
 		{"zoom": 0.6, "grid": true, "lod": "simple", "redraw": false},
 		{"zoom": 0.6, "grid": false, "lod": "simple", "redraw": false},
+		{"zoom": 0.65, "grid": true, "lod": "simple", "redraw": false},
+		{"zoom": 0.7, "grid": true, "lod": "full", "redraw": true},
+		{"zoom": 0.7, "grid": false, "lod": "full", "redraw": false},
 		{"zoom": 1.0, "grid": true, "lod": "full", "redraw": true},
 		{"zoom": 1.0, "grid": false, "lod": "full", "redraw": false},
 	]
@@ -202,7 +216,6 @@ func _assert_multimesh_preserves_per_colony_color(renderer: Node) -> void:
 		2: Color.BLUE,
 	}
 	renderer.set_territory_snapshot({"cell_owners": owners}, colors)
-	await process_frame
 
 	var batch: MultiMeshInstance2D = renderer.get_owned_cells_batch()
 	_assert_eq(batch.multimesh.instance_count, 2, "two-color batch instance count")
@@ -212,26 +225,66 @@ func _assert_multimesh_preserves_per_colony_color(renderer: Node) -> void:
 	)
 
 
-func _assert_grid_candidate_cap(renderer: Node, camera: Camera2D) -> void:
+func _assert_chunked_grid_cache(renderer: Node, camera: Camera2D) -> void:
 	camera.zoom = Vector2.ONE
 	renderer.grid_visible = true
-	renderer.full_grid_candidate_limit = 3000
-	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom under grid candidate cap")
+	camera.position = Vector2.ZERO
+	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom draws chunked grid")
+	var before_rebuild_ms: float = renderer.get_debug_metrics()["grid_cache_rebuild_ms"]
+	renderer.queue_redraw()
+	await process_frame
 
-	camera.zoom = Vector2.ONE * 0.87
-	_assert_eq(renderer.will_draw_cell_grid(), false, "problem zoom over grid candidate cap")
-	var capped_metrics: Dictionary = renderer.get_debug_metrics()
-	_assert_eq(capped_metrics["grid_suppressed_by_limit"], true, "problem zoom grid suppressed metric")
-	_assert_true(capped_metrics["estimated_full_grid_candidates"] > 3000, "problem zoom candidate count")
-
-	renderer.full_grid_candidate_limit = 1
-	_assert_eq(renderer.will_draw_cell_grid(), false, "low grid candidate cap suppresses full grid")
 	var metrics: Dictionary = renderer.get_debug_metrics()
-	_assert_eq(metrics["grid_suppressed_by_limit"], true, "grid suppressed metric")
-	_assert_eq(metrics["full_grid_candidate_limit"], 1, "grid cap metric")
-	_assert_true(metrics["estimated_full_grid_candidates"] > 1, "estimated grid candidate count")
+	_assert_eq(metrics["grid_render_mode"], "chunked_lines", "chunked grid metric")
+	_assert_eq(metrics["grid_hidden_reason"], "none", "visible grid reason")
+	_assert_true(metrics["grid_chunks_visible"] > 0, "visible grid chunks")
+	_assert_true(metrics["grid_visible_line_points"] > 0, "visible grid line points")
+	_assert_eq(metrics["line_points"], metrics["grid_visible_line_points"], "line points mirror visible chunk points")
+	_assert_eq(metrics["visible"], 0, "chunked grid does not repurpose visible cell count")
+	_assert_eq(metrics["drawn"], 0, "chunked grid does not repurpose drawn cell count")
+	_assert_eq(metrics["candidates"], 0, "chunked grid does not repurpose candidate cell count")
+	_assert_eq(metrics["line_build_ms"], 0.0, "camera draw does not rebuild line points")
 
-	renderer.full_grid_candidate_limit = 3000
+	camera.position = Vector2(800.0, 600.0)
+	renderer.queue_redraw()
+	await process_frame
+	metrics = renderer.get_debug_metrics()
+	_assert_eq(metrics["grid_cache_rebuild_ms"], before_rebuild_ms, "camera pan does not rebuild grid cache")
+
+
+func _assert_grid_position_independence(renderer: Node, camera: Camera2D) -> void:
+	var positions := [
+		Vector2.ZERO,
+		Vector2(1600.0, 0.0),
+		Vector2(-1600.0, 0.0),
+		Vector2(0.0, 1600.0),
+		Vector2(0.0, -1600.0),
+	]
+	for zoom in [1.0, 0.7]:
+		var has_expected := false
+		var expected_draw := false
+		var expected_reason := ""
+		for position in positions:
+			camera.zoom = Vector2.ONE * zoom
+			camera.position = position
+			renderer.grid_visible = true
+			var draw_grid: bool = renderer.will_draw_cell_grid()
+			var reason: String = renderer.get_debug_metrics()["grid_hidden_reason"]
+			if not has_expected:
+				has_expected = true
+				expected_draw = draw_grid
+				expected_reason = reason
+			_assert_eq(draw_grid, expected_draw, "grid position independence draw zoom %.2f" % zoom)
+			_assert_eq(reason, expected_reason, "grid position independence reason zoom %.2f" % zoom)
+
+	renderer.grid_visible = false
+	_assert_eq(renderer.will_draw_cell_grid(), false, "hidden grid does not draw")
+	_assert_eq(renderer.get_debug_metrics()["grid_hidden_reason"], "global_off", "hidden grid reason")
+
+	renderer.grid_visible = true
+	camera.zoom = Vector2.ONE * 0.6
+	_assert_eq(renderer.will_draw_cell_grid(), false, "simple LOD hides grid")
+	_assert_eq(renderer.get_debug_metrics()["grid_hidden_reason"], "zoom_lod", "simple LOD hidden reason")
 
 
 func _assert_snapshot_roundtrip(scene: Node, debug_overlay: Node, camera: Camera2D) -> void:
@@ -247,6 +300,16 @@ func _assert_snapshot_roundtrip(scene: Node, debug_overlay: Node, camera: Camera
 	_assert_eq(snapshot["version"], 1, "snapshot schema version")
 	_assert_eq(snapshot["providers"].has("renderer"), true, "snapshot renderer provider")
 	_assert_eq(snapshot["providers"].has("simulation"), true, "snapshot simulation provider")
+	_assert_eq(
+		snapshot["providers"]["renderer"]["grid_render_mode"],
+		"chunked_lines",
+		"snapshot preserves chunked grid mode"
+	)
+	_assert_eq(
+		snapshot["providers"]["renderer"].has("full_grid_candidate_limit"),
+		false,
+		"snapshot no longer exposes grid candidate cap"
+	)
 	_assert_true(
 		snapshot["providers"]["simulation"]["placements_total"] >= 1,
 		"snapshot reflects real simulation state"
@@ -270,6 +333,16 @@ func _assert_snapshot_roundtrip(scene: Node, debug_overlay: Node, camera: Camera
 	)
 	_assert_eq(parsed["providers"].has("renderer"), true, "saved snapshot renderer provider")
 	_assert_eq(parsed["providers"].has("simulation"), true, "saved snapshot simulation provider")
+	_assert_eq(
+		parsed["providers"]["renderer"]["grid_render_mode"],
+		"chunked_lines",
+		"saved snapshot grid render mode"
+	)
+	_assert_eq(
+		parsed["providers"]["renderer"].has("grid_hidden_reason"),
+		true,
+		"saved snapshot grid hidden reason"
+	)
 	_assert_true(
 		parsed["providers"]["simulation"]["placements_total"] >= 1,
 		"saved snapshot preserves simulation metrics"

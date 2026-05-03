@@ -39,6 +39,14 @@ func _run() -> void:
 	_assert_eq(renderer.get_debug_metrics()["debug_axis_visible"], false, "debug axes hidden by default")
 	_assert_eq(renderer.get_debug_metrics()["grid_line_antialiased"], false, "grid lines antialiasing off by default")
 
+	camera.zoom = Vector2.ONE * 0.7
+	_assert_eq(renderer.get_current_lod_mode(), "full", "0.7 zoom uses full LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "0.7 zoom draws chunked cell grid")
+
+	camera.zoom = Vector2.ONE * 0.65
+	_assert_eq(renderer.get_current_lod_mode(), "simple", "threshold zoom uses simple LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), false, "threshold zoom hides cell grid by LOD")
+
 	camera.zoom = Vector2.ONE * 0.6
 	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom uses simple LOD")
 	_assert_eq(renderer.will_draw_cell_grid(), false, "mid zoom hides cell grid by LOD")

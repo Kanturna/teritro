@@ -5,19 +5,21 @@ every idea.
 
 ## Current Slice
 
-Slice 8.2 - Debug Snapshot & Grid-Cap Calibration v0.1
+Slice 8.3 - Chunked Debug Grid Renderer & Terrain Boundary v0.1
 
-## Slice 8.2 Exit Criteria
+## Slice 8.3 Exit Criteria
 
-- `docs/PLAN_SLICE_8_2.md` records the accepted reviewed plan.
-- `P` captures a JSON snapshot under `user://debug_snapshots`.
-- Snapshot data includes overlay, renderer, simulation, and lab context metrics.
-- Snapshot save/read JSON roundtrip and live-provider content are tested.
-- `full_grid_candidate_limit` defaults to `3000`.
-- Default zoom `1.0` still draws the grid.
-- Full-LOD candidate areas over the cap hide the debug grid honestly in HUD and
-  metrics.
-- ADR-011/ADR-012 document the cap change and snapshot evidence format.
+- `docs/PLAN_SLICE_8_3.md` records the accepted reviewed plan.
+- The old Full-Grid candidate-cap path is removed from renderer code and tests.
+- Full-grid line geometry is cached in chunks and rebuilt only when map
+  geometry changes.
+- `grid_chunk_size` defaults to `16`.
+- `simple_lod_zoom` is `0.65`; `overview_lod_zoom` remains `0.5`.
+- `grid_hidden_reason` reports `global_off`, `zoom_lod`, or `none`.
+- Headless tests cover chunk metrics, LOD boundary, position-independent grid
+  visibility, cache rebuild threshold, and snapshot additive fields.
+- ADR-007 documents that its renderer trigger fired; ADR-013 documents the
+  chunked debug-grid cache.
 - `git diff --check` passes.
 
 ## Branching
@@ -25,13 +27,15 @@ Slice 8.2 - Debug Snapshot & Grid-Cap Calibration v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 8.3 - Renderer Follow-Up Measurement v0.1
+## Proposed Slice 8.4 - Renderer Follow-Up Measurement v0.1
 
-- Manually measure grid off/on performance after MultiMesh batching at about
-  500, 1000, and 2000 owned cells using JSON snapshots.
-- Decide whether grid rendering needs a stricter LOD threshold, visible-cell
-  cap tuning, shader, TileMapLayer, or chunk renderer before grid-on zoom-out
-  views are product-relevant.
+- Manually measure grid off/on performance after chunked debug-grid caching at
+  zoom `1.0`, `0.7`, and `0.65` using JSON snapshots.
+- Decide whether grid-on zoom `0.7` needs shader/TileMap/chunked-mesh work if
+  submit cost still exceeds the soft `16 ms` target.
+- Keep future terrain/nature visuals separate from the debug grid and plan them
+  as a batched, chunked, tiled, or shader-based renderer path when product
+  terrain starts.
 - Decide whether open/aborted enclosure regions need a known-open cache with
   local invalidation if `enclosure_ms` still exceeds 5 ms in practical runs.
 - Re-evaluate stricter enclosure triggers or loop-detection if adaptive caps
