@@ -8,19 +8,22 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 4.6 - Completion Report Quality Anchors v0.1
+Slice 5 - First Colony & Turn-Rule Prototype v0.1
 
 ## Implemented (this slice)
 
-Anchored Quality Gates and external review dispositions in completion reports
-and review handoffs. Clarified when non-trivial system slices need a plan.
+Added the first sparse TerritorySim prototype with one deterministic
+auto-expanding test colony, Turn-Rule validation, renderer snapshot handoff,
+simulation debug metrics, and reset support.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
 
 ## Not Implemented
 
-- Colony spawn, ownership, expansion, Turn-Rule validation, and enclosure-fill.
+- Enclosure-fill and contested-border semantics.
+- Multi-colony spawn, simultaneous expansion, border conflict, and ownership
+  conflict resolution.
 - AI, units, combat, economy, balancing, and beauty/shader polish.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - Renderer-specific rules documentation.
@@ -29,18 +32,20 @@ changes, remove old slice contents instead of growing this file into history.
 
 ## Out of Scope
 
-- Colony, territory ownership, AI, combat, economy, and final balancing rules.
+- AI, combat, economy, units, and final balancing rules.
 - Enclosure-fill and contested-border semantics.
+- Multi-colony conflict resolution and simultaneous placement rules.
 - New external assets or addons.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
-- Runtime, scene, rendering, simulation, or test-code changes.
 - New documentation layout or plan-rules split.
 - Hooks, automations, feature branches, pushes, PRs.
 
 ## Validation
 
-Slice 4.6 is documentation-only. `git diff --check` and manual Markdown review
-are required; no Godot run is needed.
+Slice 5 changes runtime simulation, rendering integration, scene behavior,
+tests, and documentation. Run the headless test suite, `git diff --check`, and
+a manual Godot editor check for visible connected expansion, no straight
+continuation, HUD metrics, and `R` reset.
 
 ## State Rule
 

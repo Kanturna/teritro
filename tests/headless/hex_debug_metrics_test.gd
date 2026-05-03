@@ -20,6 +20,7 @@ func _run() -> void:
 	var debug_overlay: Node = scene.get_node("DebugOverlay")
 
 	_assert_eq(debug_overlay.has_provider("renderer"), true, "renderer provider registered")
+	_assert_eq(debug_overlay.has_provider("simulation"), true, "simulation provider registered")
 	_assert_eq(debug_overlay.get_detail_mode_label(), "compact", "default HUD mode")
 	debug_overlay.toggle_detail_mode()
 	_assert_eq(debug_overlay.get_detail_mode_label(), "detailed", "HUD detail toggle")
@@ -48,9 +49,28 @@ func _run() -> void:
 		"grid_line_auto_antialias",
 		"grid_line_effective_antialiased",
 		"grid_antialias_line_point_limit",
+		"owned_cells_total",
+		"owned_cells_drawn",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)
 	_assert_eq(metrics["map_outline_segments"], 966, "radius 80 map outline segment count")
+	_assert_eq(metrics["owned_cells_total"], 1, "renderer has starter ownership snapshot")
+
+	var sim_metrics: Dictionary = debug_overlay.get_provider_metrics("simulation")
+	for key in [
+		"colony_count",
+		"owned_cells_total",
+		"placements_total",
+		"candidate_count_last_step",
+		"valid_candidates_last_step",
+		"rejected_candidates_last_step",
+		"neighbor_checks_last_step",
+		"placement_validation_ms",
+		"stalled_colonies",
+	]:
+		_assert_eq(sim_metrics.has(key), true, "simulation metric key %s" % key)
+	_assert_eq(sim_metrics["colony_count"], 1, "simulation colony count")
+	_assert_eq(sim_metrics["owned_cells_total"], 1, "simulation starter ownership count")
 
 	_assert_eq(metrics["debug_axis_visible"], false, "debug axes hidden by default")
 	_send_key(scene, KEY_X)

@@ -7,13 +7,9 @@ a loose backlog.
 
 - Before `docs/WORKFLOW.md` grows clearly beyond about 250 lines, evaluate
   whether plan-related rules should move into their own document.
-- Before implementing expansion, specify how the Turn-Rule handles blocked,
-  owned, map-edge, and no-valid-neighbor cases.
-- Before tuning placement, decide whether the Turn-Rule forbids only straight
-  continuation or also immediate reverse. Default v0.1 forbids only straight
-  continuation.
 - Before implementing enclosure-fill, define contested enclosure semantics for
-  multiple colonies.
+  multiple colonies and keep the algorithm event-triggered and area-bound, not
+  per tick.
 - Before AI integration, decide whether agents submit intentions or use another
   controlled API.
 - Before unit combat, define border ownership and movement permissions.
@@ -23,14 +19,16 @@ a loose backlog.
   validate renderer frame-time and visible-cell culling on target hardware.
 - Before visual polish, evaluate whether procedural vectors, TileMapLayer,
   MultiMesh, shaders, or another renderer should own the beauty layer.
-- Before closing renderer sign-off for Slice 4, manually record lab scene
-  metrics and line readability at zoom 1.0, 0.6, and 0.25 in the Godot editor.
 - Before adding any scan, AI, unit, economy, or renderer subsystem, define the
   debug metrics and test parameters that reveal its bottlenecks.
-- Before the first colony prototype, decide from Slice 4 measurements whether
-  the current `_draw()` grid renderer is acceptable or whether MultiMesh,
-  shader grid, TileMapLayer, chunks, or another visual-only renderer must come
-  first.
+- Before Slice 6 planning, complete the Slice 5 manual visual sign-off: confirm
+  connected snake-line growth, no straight continuation, visible HUD metrics,
+  and `R` reset in the Godot editor.
+- Before owned-cell sets exceed about 5000 cells or multi-colony rendering
+  lands, refactor owned-cell rendering to iterate visible owned cells instead
+  of every owned cell.
+- Before implementing multi-colony ticks, make changed-cell metrics accumulate
+  multiple placements per tick instead of representing only one placement.
 
 ## Resolved Findings
 
@@ -69,6 +67,9 @@ a loose backlog.
   even weight and fewer line points.
 - Added adaptive grid antialiasing under a line-point limit to reduce frayed
   edge artifacts without reintroducing low-zoom draw cost.
+- Closed the Slice 4 visual pre-gate for Slice 5: existing headless lab checks
+  pass, recent editor review accepted the black-on-white grid direction, and
+  further renderer changes stay behind explicit visual-polish findings.
 
 ### 2026-05-03 - Slice 4 review
 
@@ -90,3 +91,15 @@ a loose backlog.
 - External review findings needed a visible completion-report disposition trail.
 - Lesson captured in `AGENTS.md` completion-report requirements and
   `docs/WORKFLOW.md` review/intake rules.
+
+### 2026-05-03 - Slice 5 Turn-Rule decisions
+
+- Turn-Rule v0.1 means adjacent placement from the last placed cell plus no
+  repeated placement direction.
+- No-valid-neighbor behavior is `Stall`: the colony pauses, keeps its
+  last-placed cell, and can be restarted through reset.
+- Immediate reverse is not a separate Turn-Rule ban in v0.1 because the
+  previous cell is already occupied.
+- The current `_draw()` renderer remains acceptable for the first one-colony
+  prototype because owned cells are sparse snapshots and the sim step does not
+  scan the whole map.

@@ -1,5 +1,9 @@
 extends Node2D
 
+const TerritorySim = preload("res://src/sim/territory_sim.gd")
+const TEST_COLONY_ID := 1
+const TEST_COLONY_START := Vector2i.ZERO
+
 @export var camera_base_speed := 700.0
 @export var camera_fast_multiplier := 3.0
 @export var zoom_min := 0.25
@@ -7,12 +11,18 @@ extends Node2D
 @export var zoom_step_factor := 1.15
 @export var zoom_smoothing := 14.0
 @export var zoom_snap_tolerance := 0.005
+@export var auto_step_interval := 0.25
 
 @onready var _renderer := $HexMapRenderer
 @onready var _camera: Camera2D = $Camera2D
 @onready var _debug_overlay: Node = $DebugOverlay
 @onready var _stats_label: Label = $HUD/StatsLabel
 
+var _sim := TerritorySim.new()
+var _colony_colors: Dictionary = {
+	TEST_COLONY_ID: Color(0.1, 0.36, 1.0, 0.45),
+}
+var _auto_step_elapsed := 0.0
 var _target_zoom := 1.0
 var _middle_dragging := false
 var _last_camera_position := Vector2.INF
@@ -23,11 +33,14 @@ var _last_renderer_lod := ""
 func _ready() -> void:
 	_camera.make_current()
 	_target_zoom = _camera.zoom.x
+	_initialize_sim()
 	_debug_overlay.register_provider("renderer", _renderer)
+	_debug_overlay.register_provider("simulation", _sim)
 	_renderer.queue_redraw()
 
 
 func _process(delta: float) -> void:
+	_step_simulation(delta)
 	_handle_keyboard_pan(delta)
 	_smooth_zoom(delta)
 	_redraw_when_camera_changes()
@@ -53,6 +66,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_renderer.debug_axis_visible = not _renderer.debug_axis_visible
 		elif event.keycode == KEY_H:
 			_debug_overlay.toggle_detail_mode()
+		elif event.keycode == KEY_R:
+			_reset_sim()
 
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
@@ -100,6 +115,32 @@ func _set_target_zoom(value: float) -> void:
 	_target_zoom = clampf(value, zoom_min, zoom_max)
 
 
+func _initialize_sim() -> void:
+	_sim.configure(_renderer.map_radius)
+	_sim.spawn_colony(TEST_COLONY_ID, TEST_COLONY_START)
+	_apply_sim_snapshot()
+
+
+func _reset_sim() -> void:
+	_auto_step_elapsed = 0.0
+	_sim.reset()
+	_apply_sim_snapshot()
+
+
+func _step_simulation(delta: float) -> void:
+	_auto_step_elapsed += delta
+	if _auto_step_elapsed < auto_step_interval:
+		return
+
+	_auto_step_elapsed = 0.0
+	if _sim.step_colony(TEST_COLONY_ID):
+		_apply_sim_snapshot()
+
+
+func _apply_sim_snapshot() -> void:
+	_renderer.set_territory_snapshot(_sim.get_render_snapshot(), _colony_colors)
+
+
 func _redraw_when_camera_changes() -> void:
 	var current_lod: String = _renderer.get_current_lod_mode()
 	var lod_changed: bool = current_lod != _last_renderer_lod
@@ -120,6 +161,7 @@ func _redraw_when_camera_changes() -> void:
 
 func _update_hud(frame_ms: float) -> void:
 	var metrics: Dictionary = _debug_overlay.get_provider_metrics("renderer")
+	var sim_metrics: Dictionary = _debug_overlay.get_provider_metrics("simulation")
 	var overlay_metrics: Dictionary = _debug_overlay.get_debug_metrics()
 	var frame_stats: Dictionary = overlay_metrics["frame_ms"]
 	var draw_stats: Dictionary = overlay_metrics["renderer_draw_ms"]
@@ -133,6 +175,13 @@ func _update_hud(frame_ms: float) -> void:
 	var text := (
 		"Teritro Hex Lab\n"
 		+ "Radius: %d (%d cells)\n" % [_renderer.map_radius, _renderer.get_total_hex_count()]
+		+ "Sim: colonies %d | owned %d | placements %d | stalled %d\n"
+		% [
+			sim_metrics["colony_count"],
+			sim_metrics["owned_cells_total"],
+			sim_metrics["placements_total"],
+			sim_metrics["stalled_colonies"],
+		]
 		+ "LOD: %s | Visible: %d | Drawn: %d\n"
 		% [metrics["lod"], metrics["visible"], metrics["drawn"]]
 		+ "Candidates: %d | Cull M/V: %d/%d | Lines: %d\n"
@@ -157,7 +206,22 @@ func _update_hud(frame_ms: float) -> void:
 
 	if _debug_overlay.is_detailed():
 		text += (
-			"Phases: bounds %.2f | candidates %.2f | lines %.2f | submit %.2f\n"
+			"Sim step: candidates %d | valid %d | rejected %d | checks %d | %.3f ms\n"
+			% [
+				sim_metrics["candidate_count_last_step"],
+				sim_metrics["valid_candidates_last_step"],
+				sim_metrics["rejected_candidates_last_step"],
+				sim_metrics["neighbor_checks_last_step"],
+				sim_metrics["placement_validation_ms"],
+			]
+			+ "Sim rejects: straight %d | occupied %d | out %d | changed %d\n"
+			% [
+				sim_metrics["rejected_straight_last_step"],
+				sim_metrics["rejected_occupied_last_step"],
+				sim_metrics["rejected_out_of_bounds_last_step"],
+				sim_metrics["changed_cells_last_step"],
+			]
+			+ "Phases: bounds %.2f | candidates %.2f | lines %.2f | submit %.2f\n"
 			% [
 				metrics["bounds_ms"],
 				metrics["candidate_ms"],
@@ -175,7 +239,7 @@ func _update_hud(frame_ms: float) -> void:
 
 	text += (
 		"WASD/Arrows pan | Shift fast | MMB drag\n"
-		+ "Mouse wheel zoom | G grid | X axes | H HUD | C reset"
+		+ "Mouse wheel zoom | G grid | X axes | H HUD | C camera | R sim"
 	)
 
 	_stats_label.text = text

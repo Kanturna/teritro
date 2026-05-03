@@ -20,6 +20,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var grid_line_screen_width := 1.0
 @export var overview_line_screen_width := 1.5
 @export var map_outline_screen_width := 2.0
+@export var default_colony_color := Color(0.1, 0.36, 1.0, 0.45)
 @export var grid_line_antialiased := false
 @export var grid_line_auto_antialias := true
 @export var grid_antialias_line_point_limit := 40000
@@ -38,6 +39,8 @@ var _base_polygon := PackedVector2Array()
 var _map_outline_segments := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
 var _grid_line_points := PackedVector2Array()
+var _owned_cells: Dictionary = {}
+var _colony_colors: Dictionary = {}
 var _visible_centers := PackedVector2Array()
 var _visible_coords: Array[Vector2i] = []
 var _visible_corners: Array[Vector2] = []
@@ -58,6 +61,7 @@ var _line_point_count := 0
 var _lod_mode := "full"
 var _cell_grid_drawn := false
 var _grid_line_effective_antialiased := false
+var _owned_cells_drawn := 0
 
 
 func _ready() -> void:
@@ -99,7 +103,16 @@ func get_debug_metrics() -> Dictionary:
 		"grid_line_auto_antialias": grid_line_auto_antialias,
 		"grid_line_effective_antialiased": _grid_line_effective_antialiased,
 		"grid_antialias_line_point_limit": grid_antialias_line_point_limit,
+		"owned_cells_total": _owned_cells.size(),
+		"owned_cells_drawn": _owned_cells_drawn,
 	}
+
+
+func set_territory_snapshot(snapshot: Dictionary, colony_colors: Dictionary) -> void:
+	_owned_cells = snapshot.get("cell_owners", {}).duplicate()
+	_colony_colors = colony_colors.duplicate()
+	if is_inside_tree():
+		queue_redraw()
 
 
 func get_current_lod_mode() -> String:
@@ -134,6 +147,7 @@ func _draw() -> void:
 
 	if _lod_mode == "overview":
 		var overview_submit_start := Time.get_ticks_usec()
+		_draw_owned_cells(_get_visible_local_rect())
 		_draw_overview_map()
 		_submit_ms = _elapsed_ms(overview_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
@@ -141,6 +155,7 @@ func _draw() -> void:
 
 	if _lod_mode == "simple":
 		var simple_submit_start := Time.get_ticks_usec()
+		_draw_owned_cells(_get_visible_local_rect())
 		_draw_simple_map()
 		_submit_ms = _elapsed_ms(simple_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
@@ -148,6 +163,7 @@ func _draw() -> void:
 
 	if not grid_visible:
 		var hidden_submit_start := Time.get_ticks_usec()
+		_draw_owned_cells(_get_visible_local_rect())
 		_draw_map_outline()
 		_draw_debug_axis_lines()
 		_submit_ms = _elapsed_ms(hidden_submit_start)
@@ -168,6 +184,7 @@ func _draw() -> void:
 	_line_build_ms = _elapsed_ms(line_build_start)
 
 	var submit_start := Time.get_ticks_usec()
+	_draw_owned_cells(visible_rect)
 	_draw_map_outline()
 	_draw_debug_axis_lines()
 	if _line_point_count > 0:
@@ -200,6 +217,7 @@ func _reset_draw_metrics() -> void:
 	_line_point_count = 0
 	_cell_grid_drawn = false
 	_grid_line_effective_antialiased = false
+	_owned_cells_drawn = 0
 
 
 func _rebuild_map() -> void:
@@ -284,6 +302,25 @@ func _should_antialias_grid_lines() -> bool:
 	if grid_line_antialiased:
 		return true
 	return grid_line_auto_antialias and _line_point_count <= grid_antialias_line_point_limit
+
+
+func _draw_owned_cells(visible_rect: Rect2) -> void:
+	if _owned_cells.is_empty() or _base_polygon.size() != 6:
+		return
+
+	for coord in _owned_cells.keys():
+		var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
+		if not _hex_rect_intersects_view(center, visible_rect):
+			continue
+
+		var colony_id := int(_owned_cells[coord])
+		var color: Color = _colony_colors.get(colony_id, default_colony_color)
+		for point_index in range(6):
+			_scratch_polygon[point_index] = center + _base_polygon[point_index]
+
+		draw_colored_polygon(_scratch_polygon, color)
+		_owned_cells_drawn += 1
+		_draw_call_estimate += 1
 
 
 func _draw_overview_map() -> void:

@@ -5,21 +5,22 @@ every idea.
 
 ## Current Slice
 
-Slice 4.6 - Completion Report Quality Anchors v0.1
+Slice 5 - First Colony & Turn-Rule Prototype v0.1
 
-## Slice 4.6 Exit Criteria
+## Slice 5 Exit Criteria
 
-- `AGENTS.md` completion reports include quality-gate status when applicable.
-- `AGENTS.md` completion reports include external review dispositions when
-  applicable.
-- `WORKFLOW.md` requires non-trivial system slices to have a plan document with
-  Quality Gates before implementation, without forcing plans into `docs/`.
-- `WORKFLOW.md` defines the non-trivial system-slice heuristic.
-- `WORKFLOW.md` review handoff references plan acceptance checks when Quality
-  Gates exist.
-- `FINDINGS.md` records the Slice 4.5 review lesson and the `WORKFLOW.md`
-  growth trigger.
-- No runtime files or new documentation layout are added.
+- `docs/PLAN_SLICE_5.md` records the accepted reviewed plan.
+- Slice 4 visual sign-off is recorded before sim implementation.
+- One visible test colony spawns at the starter cell.
+- Auto-step expands every `0.25s` and remains deterministic.
+- Turn-Rule is adjacent placement plus no repeated direction.
+- No-valid-neighbor behavior is `Stall`; `R` resets the sim.
+- Simulation storage is sparse and validates at most 6 local neighbors per step.
+- Renderer consumes owned-cell snapshots and keeps color in render/scene state.
+- Debug HUD exposes simulation metrics for owned cells, candidates, rejections,
+  neighbor checks, validation cost, and stalled colonies.
+- Headless tests cover sim rules, scene integration, renderer/debug metrics, and
+  existing hex math.
 - `git diff --check` passes.
 
 ## Branching
@@ -27,18 +28,13 @@ Slice 4.6 - Completion Report Quality Anchors v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 5 - First Colony & Turn-Rule Prototype v0.1
+## Proposed Slice 6 - Expansion Stress & Enclosure Planning v0.1
 
-- Start only after Slice 4.6 is complete and Slice 4 manual editor metrics are
-  reviewed.
-- Add one visible test colony and starter cell.
-- Add minimal colony state and ownership, still separated from rendering.
-- Implement Turn-Rule validation only after no-valid-neighbor behavior is
-  decided.
-- Include Quality Gates For System Slices in the Slice 5 plan.
-- Define debug metrics for colony count, valid candidates, rejected candidates,
-  and placement validation cost before expanding the prototype.
-- Keep grid visibility as a debug/view option, not simulation truth.
+- Review Slice 5 metrics and decide whether the current deterministic policy is
+  enough for a stress slice.
+- Consider map radius `120` only as a measured stress case, not a default.
+- Plan enclosure-fill as event-triggered and area-bound, not per tick.
+- Decide whether to add frontier sets before multi-colony behavior.
 
 ## Proposed Later Meta Slice - Tooling and Automation Plan
 

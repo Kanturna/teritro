@@ -17,11 +17,14 @@ func _run() -> void:
 
 	var renderer: Node = scene.get_node("HexMapRenderer")
 	var camera: Camera2D = scene.get_node("Camera2D")
+	var debug_overlay: Node = scene.get_node("DebugOverlay")
 	camera.position = Vector2.ZERO
 	camera.zoom = Vector2.ONE
 
+	_assert_eq(debug_overlay.has_provider("simulation"), true, "simulation provider registered")
 	_assert_eq(renderer.get_total_hex_count(), 19441, "radius 80 total hex count")
 	_assert_eq(renderer.get_child_count(), 0, "renderer does not create child nodes per hex")
+	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], 1, "renderer receives starter snapshot")
 	_assert_true(
 		renderer.estimate_visible_hex_count() < 2800,
 		"default zoom visible hex count below 2800 with edge coverage, got %d"
@@ -44,6 +47,18 @@ func _run() -> void:
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], false, "grid visibility toggle off")
 	_assert_eq(renderer.will_draw_cell_grid(), false, "hidden grid does not draw cell grid")
 
+	scene._process(0.26)
+	await process_frame
+	var sim_metrics: Dictionary = debug_overlay.get_provider_metrics("simulation")
+	_assert_true(sim_metrics["owned_cells_total"] > 1, "auto-step expands colony")
+
+	_send_key(scene, KEY_R)
+	await process_frame
+	sim_metrics = debug_overlay.get_provider_metrics("simulation")
+	_assert_eq(sim_metrics["owned_cells_total"], 1, "R reset restores starter ownership")
+	_assert_eq(sim_metrics["placements_total"], 0, "R reset clears placements")
+	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], 1, "R reset updates renderer snapshot")
+
 	if _failures.is_empty():
 		print("Hex lab smoke tests passed.")
 		quit(0)
@@ -61,3 +76,11 @@ func _assert_eq(actual, expected, label: String) -> void:
 func _assert_true(condition: bool, label: String) -> void:
 	if not condition:
 		_failures.append("%s: expected true" % label)
+
+
+func _send_key(target: Node, keycode: Key) -> void:
+	var event := InputEventKey.new()
+	event.keycode = keycode
+	event.pressed = true
+	event.echo = false
+	target._unhandled_input(event)

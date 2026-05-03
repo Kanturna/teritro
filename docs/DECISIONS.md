@@ -112,3 +112,21 @@ Re-evaluation trigger: Reassess the renderer before colony work if full-grid
 zoom 1.0 stays above 16 ms draw time, if overview/simple LOD loses orientation
 or line readability, if ownership colors require per-cell rendering, or if map
 radius above 80 becomes a product requirement.
+
+## ADR-008: Sparse Event-Local Simulation Work
+
+Decision: Map size is capacity, not automatic simulation workload.
+
+Reason: Teritro needs room for territories to grow, but larger empty maps must
+not make every tick more expensive. Expansion, borders, and later scans should
+scale with active colonies, recent placements, active frontier/border perimeter,
+or triggered scan area instead of total cell count.
+
+Implementation rule: Simulation stores owned cells sparsely by axial
+coordinate. The first expansion prototype validates only the 6 neighbors around
+the last placed cell. Empty cells consume no simulation state. Enclosure-fill is
+deferred and must be event-triggered and area-bound when planned.
+
+Re-evaluation trigger: Reassess before increasing default map radius above 80,
+before adding multi-colony border behavior, before enclosure-fill, or before any
+system scans cells beyond a local placement neighborhood.
