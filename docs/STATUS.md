@@ -8,13 +8,12 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 4.5 - System Quality Gates & Plan Value Binding v0.1
+Slice 4.6 - Completion Report Quality Anchors v0.1
 
 ## Implemented (this slice)
 
-Added workflow rules for Plan Value Binding and Quality Gates For System
-Slices. Documented the Slice 4 renderer-review lesson without changing runtime
-or simulation files.
+Anchored Quality Gates and external review dispositions in completion reports
+and review handoffs. Clarified when non-trivial system slices need a plan.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -25,6 +24,7 @@ changes, remove old slice contents instead of growing this file into history.
 - AI, units, combat, economy, balancing, and beauty/shader polish.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - Renderer-specific rules documentation.
+- New documentation layout or plan-rules split.
 - Hooks, automations, feature branches, pushes, or PRs.
 
 ## Out of Scope
@@ -34,11 +34,12 @@ changes, remove old slice contents instead of growing this file into history.
 - New external assets or addons.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - Runtime, scene, rendering, simulation, or test-code changes.
+- New documentation layout or plan-rules split.
 - Hooks, automations, feature branches, pushes, PRs.
 
 ## Validation
 
-Slice 4.5 is documentation-only. `git diff --check` and manual Markdown review
+Slice 4.6 is documentation-only. `git diff --check` and manual Markdown review
 are required; no Godot run is needed.
 
 ## State Rule

@@ -5,19 +5,21 @@ every idea.
 
 ## Current Slice
 
-Slice 4.5 - System Quality Gates & Plan Value Binding v0.1
+Slice 4.6 - Completion Report Quality Anchors v0.1
 
-## Slice 4.5 Exit Criteria
+## Slice 4.6 Exit Criteria
 
-- `WORKFLOW.md` defines Plan Value Binding as a new section.
-- Plan Value Binding covers plan values, quality/tradeoff boundaries, and
-  verified repo-state claims.
-- `WORKFLOW.md` defines Quality Gates For System Slices with functional goal,
-  in-scope and out-of-scope quality dimensions, known failure modes, acceptance
-  checks, and tradeoff boundaries.
-- `FINDINGS.md` records the Slice 4 review lesson without blame language.
-- `AGENTS.md` remains unchanged.
-- No `docs/RENDERING_RULES.md` or runtime files are added.
+- `AGENTS.md` completion reports include quality-gate status when applicable.
+- `AGENTS.md` completion reports include external review dispositions when
+  applicable.
+- `WORKFLOW.md` requires non-trivial system slices to have a plan document with
+  Quality Gates before implementation, without forcing plans into `docs/`.
+- `WORKFLOW.md` defines the non-trivial system-slice heuristic.
+- `WORKFLOW.md` review handoff references plan acceptance checks when Quality
+  Gates exist.
+- `FINDINGS.md` records the Slice 4.5 review lesson and the `WORKFLOW.md`
+  growth trigger.
+- No runtime files or new documentation layout are added.
 - `git diff --check` passes.
 
 ## Branching
@@ -27,7 +29,7 @@ second active developer joins or PR review becomes necessary.
 
 ## Proposed Slice 5 - First Colony & Turn-Rule Prototype v0.1
 
-- Start only after Slice 4.5 is complete and Slice 4 manual editor metrics are
+- Start only after Slice 4.6 is complete and Slice 4 manual editor metrics are
   reviewed.
 - Add one visible test colony and starter cell.
 - Add minimal colony state and ownership, still separated from rendering.

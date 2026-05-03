@@ -38,8 +38,10 @@ Every completed slice must include:
 - Summary
 - Changed files
 - Validation
+- Quality gate status, when applicable
 - Documentation sync
 - Risks / follow-up
+- External review dispositions, when applicable
 - Review handoff stance
 - Suggested commit title matching the current open diff
 - Suggested commit body matching the current open diff

@@ -107,6 +107,9 @@ End each completion report with one workflow label:
 
 These labels are workflow labels, not canonical domain status values. When
 requesting review, ask concrete questions; do not write only "please review".
+When the slice has Quality Gates, the review request should reference the
+plan's acceptance checks directly. Reviewers verify these checks first, then
+raise additional concerns.
 
 ## External Evaluation Intake
 
@@ -120,6 +123,9 @@ inside the current slice scope, add no new dependency, do not change unresolved
 architecture or gameplay decisions, are quick to validate, and reduce drift,
 ambiguity, duplication, or future cleanup cost. If such a finding is not
 implemented, state the deferral reason explicitly.
+
+When external reviews were used, the completion report must list each finding's
+disposition: `accept`, `reject`, `defer`, or `document`.
 
 ## Reframe Rule
 
@@ -139,8 +145,10 @@ open gate.
 
 ## Plan Document Format
 
-Plan documents are read-only artifacts under `docs/`. If a plan is reviewed and
-iterated, keep a version history with the concrete trigger for each version.
+Plan documents are read-only artifacts, typically under `docs/`. Plans may live
+externally or in the repo; if a plan is reviewed, iterated, or reused across
+sessions, keep a versioned copy under `docs/` with the concrete trigger for
+each version.
 
 Required sections: Summary, Key Changes, Test Plan, Assumptions, First Reviewer
 Brief. Optional sections: Subphases, ADR Updates, Architecture Lookahead, Open
@@ -151,9 +159,15 @@ review" is not enough.
 
 ## Quality Gates For System Slices
 
-Before implementing a non-trivial system slice, define the system's relevant
-quality dimensions, likely failure modes, acceptance checks, and tradeoff
-boundaries. Do this even when the slice appears technically simple.
+Before implementing a non-trivial system slice, create a plan document that
+defines the system's relevant quality dimensions, likely failure modes,
+acceptance checks, and tradeoff boundaries. Do this even when the slice appears
+technically simple; the plan does not have to be a repo file unless it is
+reviewed, iterated, or reused across sessions.
+
+A slice is non-trivial when it touches one or more of: new subsystems, runtime
+behavior, user-facing output, persistent state, performance characteristics, or
+cross-layer interfaces. When in doubt, treat it as non-trivial.
 
 The plan must name:
 

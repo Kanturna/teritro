@@ -5,6 +5,8 @@ a loose backlog.
 
 ## Open Findings
 
+- Before `docs/WORKFLOW.md` grows clearly beyond about 250 lines, evaluate
+  whether plan-related rules should move into their own document.
 - Before implementing expansion, specify how the Turn-Rule handles blocked,
   owned, map-edge, and no-valid-neighbor cases.
 - Before tuning placement, decide whether the Turn-Rule forbids only straight
@@ -79,3 +81,12 @@ a loose backlog.
   plan claims need current source verification.
 - Lesson captured as `Plan Value Binding` and `Quality Gates For System
   Slices` in `docs/WORKFLOW.md`. Future non-trivial system slices follow both.
+
+### 2026-05-03 - Slice 4.5 review
+
+- Quality Gates were required in plans, but completion reports did not yet
+  require explicit quality-gate status.
+- Non-trivial system slices needed a clearer plan requirement and heuristic.
+- External review findings needed a visible completion-report disposition trail.
+- Lesson captured in `AGENTS.md` completion-report requirements and
+  `docs/WORKFLOW.md` review/intake rules.
