@@ -30,6 +30,7 @@ class ColonyState:
 
 
 var map_radius := 80
+var enclosure_scan_cell_limit := 3000
 var cell_owners: Dictionary = {}
 var colonies: Dictionary = {}
 
@@ -52,6 +53,13 @@ var _last_reanchor_distance := -1
 var _stall_resolution_ms := 0.0
 var _permanent_stalls_last_step := 0
 var _permanent_stalls_total := 0
+var _enclosure_regions_checked_last_step := 0
+var _enclosure_visited_cells_last_step := 0
+var _enclosure_filled_cells_last_step := 0
+var _enclosure_aborted_regions_last_step := 0
+var _enclosure_ms := 0.0
+var _enclosures_total := 0
+var _enclosure_filled_cells_total := 0
 
 
 func configure(new_map_radius: int) -> void:
@@ -70,6 +78,8 @@ func reset() -> void:
 	_reset_step_metrics()
 	_reanchors_total = 0
 	_permanent_stalls_total = 0
+	_enclosures_total = 0
+	_enclosure_filled_cells_total = 0
 
 	for config in configs:
 		_spawn_colony_internal(config["id"], config["starter"], false)
@@ -204,6 +214,13 @@ func get_debug_metrics() -> Dictionary:
 		"stall_resolution_ms": _stall_resolution_ms,
 		"permanent_stalls_last_step": _permanent_stalls_last_step,
 		"permanent_stalls_total": _permanent_stalls_total,
+		"enclosure_regions_checked_last_step": _enclosure_regions_checked_last_step,
+		"enclosure_visited_cells_last_step": _enclosure_visited_cells_last_step,
+		"enclosure_filled_cells_last_step": _enclosure_filled_cells_last_step,
+		"enclosure_aborted_regions_last_step": _enclosure_aborted_regions_last_step,
+		"enclosure_ms": _enclosure_ms,
+		"enclosures_total": _enclosures_total,
+		"enclosure_filled_cells_total": _enclosure_filled_cells_total,
 	}
 
 
@@ -235,6 +252,112 @@ func _place_cell(colony: ColonyState, coord: Vector2i, direction_index: int) -> 
 	colony.placements_total += 1
 	cell_owners[coord] = colony.id
 	_changed_cells_last_step = 1
+	_resolve_enclosures_after_placement(colony, coord)
+
+
+func _resolve_enclosures_after_placement(colony: ColonyState, placed_cell: Vector2i) -> void:
+	if _count_same_colony_neighbors(placed_cell, colony.id) < 2:
+		return
+
+	var start_usec := Time.get_ticks_usec()
+	var step_enclosure_visited: Dictionary = {}
+
+	for direction_index in range(6):
+		var neighbor: Vector2i = placed_cell + HexGridMath.direction(direction_index)
+		if not _is_inside_map(neighbor):
+			continue
+		if cell_owners.has(neighbor):
+			continue
+		if step_enclosure_visited.has(neighbor):
+			continue
+
+		_enclosure_regions_checked_last_step += 1
+		var region_result := _scan_empty_region_for_enclosure(
+			neighbor,
+			colony.id,
+			step_enclosure_visited
+		)
+		if region_result["aborted"]:
+			_enclosure_aborted_regions_last_step += 1
+			continue
+		if not region_result["closed"]:
+			continue
+
+		_fill_enclosed_region(colony, region_result["cells"])
+
+	_enclosure_ms = _elapsed_ms(start_usec)
+
+
+func _count_same_colony_neighbors(coord: Vector2i, colony_id: int) -> int:
+	var count := 0
+	for direction_index in range(6):
+		var neighbor: Vector2i = coord + HexGridMath.direction(direction_index)
+		if int(cell_owners.get(neighbor, 0)) == colony_id:
+			count += 1
+
+	return count
+
+
+func _scan_empty_region_for_enclosure(
+	start: Vector2i,
+	colony_id: int,
+	step_enclosure_visited: Dictionary
+) -> Dictionary:
+	var queue: Array[Vector2i] = [start]
+	var queue_index := 0
+	var cells: Array[Vector2i] = []
+	var closed := true
+	var aborted := false
+	step_enclosure_visited[start] = true
+
+	while queue_index < queue.size():
+		var cell := queue[queue_index]
+		queue_index += 1
+		cells.append(cell)
+		_enclosure_visited_cells_last_step += 1
+
+		if cells.size() > enclosure_scan_cell_limit:
+			aborted = true
+			closed = false
+			break
+
+		for direction_index in range(6):
+			var neighbor: Vector2i = cell + HexGridMath.direction(direction_index)
+			if not _is_inside_map(neighbor):
+				closed = false
+				continue
+
+			var owner := int(cell_owners.get(neighbor, 0))
+			if owner == colony_id:
+				continue
+			if owner != 0:
+				closed = false
+				continue
+			if step_enclosure_visited.has(neighbor):
+				continue
+
+			step_enclosure_visited[neighbor] = true
+			queue.append(neighbor)
+
+	return {
+		"closed": closed,
+		"aborted": aborted,
+		"cells": cells,
+	}
+
+
+func _fill_enclosed_region(colony: ColonyState, cells: Array[Vector2i]) -> void:
+	if cells.is_empty():
+		return
+
+	for cell in cells:
+		colony.owned_cells[cell] = true
+		cell_owners[cell] = colony.id
+
+	_enclosure_filled_cells_last_step += cells.size()
+	_enclosure_filled_cells_total += cells.size()
+	_enclosures_total += 1
+	_changed_cells_last_step += cells.size()
 
 
 func _find_reanchor_cell(colony: ColonyState) -> Dictionary:
@@ -300,6 +423,11 @@ func _reset_step_metrics() -> void:
 	_last_reanchor_distance = -1
 	_stall_resolution_ms = 0.0
 	_permanent_stalls_last_step = 0
+	_enclosure_regions_checked_last_step = 0
+	_enclosure_visited_cells_last_step = 0
+	_enclosure_filled_cells_last_step = 0
+	_enclosure_aborted_regions_last_step = 0
+	_enclosure_ms = 0.0
 
 
 func _elapsed_ms(start_usec: int) -> float:

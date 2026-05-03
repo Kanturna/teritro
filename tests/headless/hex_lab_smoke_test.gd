@@ -1,5 +1,7 @@
 extends SceneTree
 
+const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
+
 var _failures: Array[String] = []
 
 
@@ -59,6 +61,22 @@ func _run() -> void:
 	_assert_eq(sim_metrics["placements_total"], 0, "R reset clears placements")
 	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], 1, "R reset updates renderer snapshot")
 
+	var sim = scene._sim
+	var center := Vector2i(3, 0)
+	var ring := _ring_cells(center)
+	var closing_cell: Vector2i = ring[0]
+	var owned := [Vector2i.ZERO]
+	for cell in ring:
+		if cell != closing_cell:
+			owned.append(cell)
+	_apply_owned_cells(sim, owned, owned[0], 0)
+	sim._place_cell(sim.colonies[1], closing_cell, 0)
+	scene._apply_sim_snapshot()
+	await process_frame
+	sim_metrics = debug_overlay.get_provider_metrics("simulation")
+	_assert_eq(sim_metrics["enclosure_filled_cells_last_step"], 1, "scene sim fills enclosure")
+	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], owned.size() + 2, "renderer receives filled snapshot")
+
 	if _failures.is_empty():
 		print("Hex lab smoke tests passed.")
 		quit(0)
@@ -84,3 +102,30 @@ func _send_key(target: Node, keycode: Key) -> void:
 	event.pressed = true
 	event.echo = false
 	target._unhandled_input(event)
+
+
+func _ring_cells(center: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for direction_index in range(6):
+		cells.append(center + HexGridMath.direction(direction_index))
+	return cells
+
+
+func _apply_owned_cells(
+	sim,
+	cells: Array,
+	last_placed_cell: Vector2i,
+	last_placement_direction: int
+) -> void:
+	var colony = sim.colonies[1]
+	sim.cell_owners.clear()
+	colony.owned_cells.clear()
+
+	for cell in cells:
+		colony.owned_cells[cell] = true
+		sim.cell_owners[cell] = colony.id
+
+	colony.last_placed_cell = last_placed_cell
+	colony.last_placement_direction = last_placement_direction
+	colony.placements_total = maxi(0, cells.size() - 1)
+	colony.stalled = false

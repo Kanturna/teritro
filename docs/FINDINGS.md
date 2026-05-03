@@ -7,9 +7,10 @@ a loose backlog.
 
 - Before `docs/WORKFLOW.md` grows clearly beyond about 250 lines, evaluate
   whether plan-related rules should move into their own document.
-- Before implementing enclosure-fill, define contested enclosure semantics for
-  multiple colonies and keep the algorithm event-triggered and area-bound, not
-  per tick.
+- Before implementing multi-colony spawn, decide final contested enclosure
+  semantics. Slice 7 v0.1 treats regions touching non-self colonies as open and
+  no-fill; multi-colony must choose a final policy such as nearest-claim,
+  both-claim, no-fill, or weighted resolution.
 - Before AI integration, decide whether agents submit intentions or use another
   controlled API.
 - Before unit combat, define border ownership and movement permissions.
@@ -33,6 +34,9 @@ a loose backlog.
   of every owned cell.
 - Before implementing multi-colony ticks, make changed-cell metrics accumulate
   multiple placements per tick instead of representing only one placement.
+- Before allowing nested enclosure patterns as a product requirement, decide
+  whether inner holes are filled in the same step, left as designed empty
+  regions, or resolved by a later recursive/event pass.
 
 ## Resolved Findings
 
@@ -123,3 +127,15 @@ a loose backlog.
 - On-demand frontier scanning over owned cells is accepted for the one-colony
   prototype; concrete thresholds now trigger future incremental frontier-set
   work.
+
+### 2026-05-03 - Slice 7 Enclosure-Fill decisions
+
+- Enclosure-fill is event-local: it runs only after real placements and only
+  scans empty regions adjacent to the placed cell.
+- A placed cell needs at least two same-colony neighbors before enclosure scan
+  can run.
+- Map edge and out-of-bounds contact make a region open, not enclosed.
+- v0.1 contested behavior is conservative: any non-self colony contact makes
+  the region open/no-fill.
+- Auto-filled cells change ownership but do not change `last_placed_cell`,
+  `last_placement_direction`, or active `placements_total`.

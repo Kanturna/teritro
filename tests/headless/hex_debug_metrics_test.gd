@@ -76,6 +76,13 @@ func _run() -> void:
 		"stall_resolution_ms",
 		"permanent_stalls_last_step",
 		"permanent_stalls_total",
+		"enclosure_regions_checked_last_step",
+		"enclosure_visited_cells_last_step",
+		"enclosure_filled_cells_last_step",
+		"enclosure_aborted_regions_last_step",
+		"enclosure_ms",
+		"enclosures_total",
+		"enclosure_filled_cells_total",
 	]:
 		_assert_eq(sim_metrics.has(key), true, "simulation metric key %s" % key)
 	_assert_eq(sim_metrics["colony_count"], 1, "simulation colony count")

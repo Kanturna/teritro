@@ -5,22 +5,22 @@ every idea.
 
 ## Current Slice
 
-Slice 6 - Stall Resolution via Frontier Re-Anchoring v0.1
+Slice 7 - Event-Local Enclosure Fill Prototype v0.1
 
-## Slice 6 Exit Criteria
+## Slice 7 Exit Criteria
 
-- `docs/PLAN_SLICE_6.md` records the accepted reviewed plan.
-- Re-anchor is attempted only after local placement from `last_placed_cell`
-  fails.
-- Re-anchor scans the colony's own `owned_cells`, not the whole map.
-- Anchor choice is deterministic: nearest hex distance, then `q`, then `r`.
-- Placement direction resets before placing from the chosen anchor.
-- Permanent stall remains only when no owned frontier cell has an in-bounds
-  unowned neighbor.
-- Debug HUD exposes re-anchor attempts, successes, scan counts, neighbor checks,
-  anchor distance, and stall-resolution time.
-- Headless tests cover re-anchor success, no re-anchor without stall, permanent
-  stall, tie-breaks, deterministic sequences, and scan bounds.
+- `docs/PLAN_SLICE_7.md` records the accepted reviewed plan.
+- Enclosure-fill is triggered only after real placements.
+- Enclosure scans only empty neighbor regions around the placed cell.
+- Ordinary line growth short-circuits without flood-fill.
+- Open, map-edge-connected, out-of-bounds, and contested regions remain
+  unfilled.
+- Auto-filled cells do not change `last_placed_cell`, placement direction, or
+  active `placements_total`.
+- Debug HUD exposes enclosure region count, visited cells, filled cells, aborts,
+  and timing.
+- Headless tests cover one-cell and multi-cell fills, open no-fill, contested
+  no-fill, scan cap, static no-global-scan guard, and placement semantics.
 - `git diff --check` passes.
 
 ## Branching
@@ -28,16 +28,16 @@ Slice 6 - Stall Resolution via Frontier Re-Anchoring v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 7 - Expansion Behavior Review & Enclosure Planning v0.1
+## Proposed Slice 8 - Expansion Behavior Review & Multi-Colony Prep v0.1
 
-- Review Slice 6 re-anchor metrics and visual growth patterns for clumping or
-  weak map coverage.
+- Review Slice 6/7 re-anchor and enclosure metrics plus visual growth patterns
+  for clumping, weak map coverage, or too-aggressive fill.
 - Decide whether nearest re-anchor remains the deterministic baseline before
   AI-policy planning.
 - Consider map radius `120` only as a measured stress case, not a default.
-- Plan enclosure-fill as event-triggered and area-bound, not per tick.
-- Decide whether incremental frontier sets are needed before multi-colony
-  behavior.
+- Decide final contested enclosure semantics before multi-colony spawn.
+- Decide whether incremental frontier sets or enclosure caches are needed before
+  multi-colony behavior.
 
 ## Proposed Later Meta Slice - Tooling and Automation Plan
 

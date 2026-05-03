@@ -15,8 +15,16 @@ func _init() -> void:
 	_test_no_reanchor_without_stall()
 	_test_reset_restores_starter_state()
 	_test_reset_clears_reanchor_and_permanent_stall_totals()
+	_test_reset_clears_enclosure_totals()
 	_test_deterministic_sequence()
 	_test_reanchor_sequence_is_deterministic()
+	_test_one_cell_enclosure_fills()
+	_test_multi_cell_enclosure_fills()
+	_test_open_region_does_not_fill()
+	_test_contested_region_does_not_fill()
+	_test_normal_growth_skips_enclosure_scan()
+	_test_enclosure_scan_cap_aborts()
+	_test_sim_does_not_use_global_radius_scan()
 
 	if _failures.is_empty():
 		print("TerritorySim tests passed.")
@@ -166,6 +174,32 @@ func _test_reset_clears_reanchor_and_permanent_stall_totals() -> void:
 	)
 
 
+func _test_reset_clears_enclosure_totals() -> void:
+	var sim := _new_sim(8)
+	var center := Vector2i(3, 0)
+	var ring := _ring_cells(center)
+	var closing_cell: Vector2i = ring[0]
+	var owned := [Vector2i.ZERO]
+	owned.append_array(_without_cell(ring, closing_cell))
+	_apply_owned_cells(sim, owned, owned[0], TerritorySim.UNDEFINED_DIRECTION)
+
+	sim._place_cell(sim.colonies[1], closing_cell, 0)
+	_assert_eq(sim.get_debug_metrics()["enclosures_total"], 1, "reset enclosure test has enclosure")
+	_assert_eq(
+		sim.get_debug_metrics()["enclosure_filled_cells_total"],
+		1,
+		"reset enclosure test has filled cell"
+	)
+
+	sim.reset()
+	_assert_eq(sim.get_debug_metrics()["enclosures_total"], 0, "reset clears enclosures total")
+	_assert_eq(
+		sim.get_debug_metrics()["enclosure_filled_cells_total"],
+		0,
+		"reset clears enclosure filled cells total"
+	)
+
+
 func _test_deterministic_sequence() -> void:
 	var sim_a := _new_sim(80)
 	var sim_b := _new_sim(80)
@@ -207,6 +241,121 @@ func _test_reanchor_sequence_is_deterministic() -> void:
 	_assert_eq(sequence_a, sequence_b, "reanchor sequence is deterministic")
 
 
+func _test_one_cell_enclosure_fills() -> void:
+	var sim := _new_sim(8)
+	var center := Vector2i(3, 0)
+	var ring := _ring_cells(center)
+	var closing_cell: Vector2i = ring[0]
+	var owned := [Vector2i.ZERO]
+	owned.append_array(_without_cell(ring, closing_cell))
+	_apply_owned_cells(sim, owned, owned[0], TerritorySim.UNDEFINED_DIRECTION)
+	var placements_before: int = sim.get_colony_debug_state(1)["placements_total"]
+
+	sim._place_cell(sim.colonies[1], closing_cell, 0)
+
+	var state: Dictionary = sim.get_colony_debug_state(1)
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(sim.get_owner_at(center), 1, "one-cell hole filled")
+	_assert_eq(metrics["enclosure_regions_checked_last_step"] >= 1, true, "one-cell enclosure checked")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 1, "one-cell enclosure fill count")
+	_assert_eq(metrics["changed_cells_last_step"], 2, "changed cells includes placement and fill")
+	_assert_eq(state["placements_total"], placements_before + 1, "fill does not count as placement")
+	_assert_eq(state["last_placed_cell"], closing_cell, "fill does not change last placed")
+	_assert_eq(state["last_placement_direction"], 0, "fill does not change direction")
+
+
+func _test_multi_cell_enclosure_fills() -> void:
+	var sim := _new_sim(8)
+	var region := [
+		Vector2i(3, 0),
+		Vector2i(4, 0),
+	]
+	var setup := _closed_region_setup(region)
+	_apply_owned_cells(sim, setup["owned"], setup["owned"][0], TerritorySim.UNDEFINED_DIRECTION)
+
+	sim._place_cell(sim.colonies[1], setup["closing_cell"], 0)
+
+	var metrics: Dictionary = sim.get_debug_metrics()
+	for cell in region:
+		_assert_eq(sim.get_owner_at(cell), 1, "multi-cell enclosed cell filled")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 2, "multi-cell fill count")
+	_assert_eq(metrics["changed_cells_last_step"], 3, "multi-cell changed count")
+
+
+func _test_open_region_does_not_fill() -> void:
+	var sim := _new_sim(2)
+	var placed_cell := Vector2i.ZERO
+	var owned := [
+		HexGridMath.direction(1),
+		HexGridMath.direction(3),
+	]
+	_apply_owned_cells(sim, owned, owned[0], TerritorySim.UNDEFINED_DIRECTION)
+
+	sim._place_cell(sim.colonies[1], placed_cell, 0)
+
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(metrics["enclosure_regions_checked_last_step"] > 0, true, "open region checked")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "open region not filled")
+	_assert_eq(sim.get_owner_at(HexGridMath.direction(0)), 0, "open neighbor remains empty")
+
+
+func _test_contested_region_does_not_fill() -> void:
+	var sim := _new_sim(8)
+	var center := Vector2i(3, 0)
+	var ring := _ring_cells(center)
+	var closing_cell: Vector2i = ring[0]
+	var contested_cell: Vector2i = ring[3]
+	var owned := [Vector2i.ZERO]
+	for cell in ring:
+		if cell != closing_cell and cell != contested_cell:
+			owned.append(cell)
+	_apply_owned_cells(sim, owned, owned[0], TerritorySim.UNDEFINED_DIRECTION)
+	sim.cell_owners[contested_cell] = 2
+
+	sim._place_cell(sim.colonies[1], closing_cell, 0)
+
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(sim.get_owner_at(center), 0, "contested region remains empty")
+	_assert_eq(metrics["enclosure_regions_checked_last_step"] >= 1, true, "contested region checked")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "contested region no fill")
+
+
+func _test_normal_growth_skips_enclosure_scan() -> void:
+	var sim := _new_sim(80)
+	_assert_eq(sim.step_colony(1), true, "normal enclosure skip step")
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(metrics["enclosure_regions_checked_last_step"], 0, "normal line skips enclosure scan")
+	_assert_eq(metrics["enclosure_visited_cells_last_step"], 0, "normal line visits no enclosure cells")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "normal line fills nothing")
+
+
+func _test_enclosure_scan_cap_aborts() -> void:
+	var sim := _new_sim(8)
+	sim.enclosure_scan_cell_limit = 0
+	var center := Vector2i(3, 0)
+	var ring := _ring_cells(center)
+	var closing_cell: Vector2i = ring[0]
+	var owned := [Vector2i.ZERO]
+	owned.append_array(_without_cell(ring, closing_cell))
+	_apply_owned_cells(sim, owned, owned[0], TerritorySim.UNDEFINED_DIRECTION)
+
+	sim._place_cell(sim.colonies[1], closing_cell, 0)
+
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(sim.get_owner_at(center), 0, "scan cap leaves region empty")
+	_assert_eq(metrics["enclosure_aborted_regions_last_step"] >= 1, true, "scan cap abort metric")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "scan cap no fill")
+
+
+func _test_sim_does_not_use_global_radius_scan() -> void:
+	var content := FileAccess.get_file_as_string("res://src/sim/territory_sim.gd")
+	_assert_eq(
+		content.contains("coords_in_radius"),
+		false,
+		"sim enclosure logic must not use global radius scan"
+	)
+
+
 func _new_sim(radius: int) -> TerritorySim:
 	var sim := TerritorySim.new()
 	sim.configure(radius)
@@ -221,9 +370,67 @@ func _blocked_origin_cells() -> Array[Vector2i]:
 	return cells
 
 
+func _ring_cells(center: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for direction_index in range(6):
+		cells.append(center + HexGridMath.direction(direction_index))
+	return cells
+
+
+func _without_cell(cells: Array[Vector2i], excluded: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for cell in cells:
+		if cell != excluded:
+			result.append(cell)
+	return result
+
+
+func _closed_region_setup(region: Array) -> Dictionary:
+	var boundary: Array[Vector2i] = []
+	var region_set := {}
+	for cell in region:
+		region_set[cell] = true
+
+	for cell in region:
+		for direction_index in range(6):
+			var neighbor: Vector2i = cell + HexGridMath.direction(direction_index)
+			if region_set.has(neighbor) or boundary.has(neighbor):
+				continue
+			boundary.append(neighbor)
+
+	for candidate in boundary:
+		var owned := [Vector2i.ZERO]
+		for boundary_cell in boundary:
+			if boundary_cell != candidate:
+				owned.append(boundary_cell)
+		if _owned_neighbor_count(candidate, owned) >= 2:
+			return {
+				"closing_cell": candidate,
+				"owned": owned,
+			}
+
+	return {
+		"closing_cell": boundary[0],
+		"owned": [Vector2i.ZERO],
+	}
+
+
+func _owned_neighbor_count(coord: Vector2i, owned_cells: Array) -> int:
+	var owned := {}
+	for cell in owned_cells:
+		owned[cell] = true
+
+	var count := 0
+	for direction_index in range(6):
+		if owned.has(coord + HexGridMath.direction(direction_index)):
+			count += 1
+
+	return count
+
+
 func _apply_owned_cells(
 	sim: TerritorySim,
-	cells: Array[Vector2i],
+	cells: Array,
 	last_placed_cell: Vector2i,
 	last_placement_direction: int
 ) -> void:

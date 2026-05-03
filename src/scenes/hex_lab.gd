@@ -230,6 +230,15 @@ func _update_hud(frame_ms: float) -> void:
 				sim_metrics["frontier_neighbor_checks_last_stall"],
 				sim_metrics["stall_resolution_ms"],
 			]
+			+ "Sim enclosure: regions %d | visited %d | filled %d/%d | abort %d | %.3f ms\n"
+			% [
+				sim_metrics["enclosure_regions_checked_last_step"],
+				sim_metrics["enclosure_visited_cells_last_step"],
+				sim_metrics["enclosure_filled_cells_last_step"],
+				sim_metrics["enclosure_filled_cells_total"],
+				sim_metrics["enclosure_aborted_regions_last_step"],
+				sim_metrics["enclosure_ms"],
+			]
 			+ "Phases: bounds %.2f | candidates %.2f | lines %.2f | submit %.2f\n"
 			% [
 				metrics["bounds_ms"],
