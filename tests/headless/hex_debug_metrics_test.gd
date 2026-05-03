@@ -43,9 +43,11 @@ func _run() -> void:
 		"culled_view",
 		"grid_line_screen_width",
 		"map_outline_screen_width",
+		"map_outline_segments",
 		"grid_line_antialiased",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)
+	_assert_eq(metrics["map_outline_segments"], 966, "radius 80 map outline segment count")
 
 	_assert_eq(metrics["debug_axis_visible"], false, "debug axes hidden by default")
 	_send_key(scene, KEY_X)

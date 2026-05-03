@@ -33,8 +33,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 			queue_redraw()
 
 var _base_polygon := PackedVector2Array()
-var _map_outline_polygon := PackedVector2Array()
-var _map_outline_line := PackedVector2Array()
+var _map_outline_segments := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
 var _grid_line_points := PackedVector2Array()
 var _visible_centers := PackedVector2Array()
@@ -90,6 +89,7 @@ func get_debug_metrics() -> Dictionary:
 		"debug_axis_visible": debug_axis_visible,
 		"grid_line_screen_width": grid_line_screen_width,
 		"map_outline_screen_width": map_outline_screen_width,
+		"map_outline_segments": int(_map_outline_segments.size() / 2),
 		"grid_line_antialiased": grid_line_antialiased,
 	}
 
@@ -194,16 +194,14 @@ func _reset_draw_metrics() -> void:
 
 func _rebuild_map() -> void:
 	_hexes = HexGridMath.coords_in_radius(map_radius)
-	_map_outline_polygon = _build_map_outline_polygon()
-	_map_outline_line = _build_map_outline_line()
+	_map_outline_segments = _build_map_outline_segments()
 	if is_inside_tree():
 		queue_redraw()
 
 
 func _rebuild_polygon() -> void:
 	_base_polygon = _build_hex_polygon_points()
-	_map_outline_polygon = _build_map_outline_polygon()
-	_map_outline_line = _build_map_outline_line()
+	_map_outline_segments = _build_map_outline_segments()
 	_scratch_polygon.resize(6)
 	if is_inside_tree():
 		queue_redraw()
@@ -266,14 +264,15 @@ func _draw_simple_map() -> void:
 
 
 func _draw_overview_fill() -> void:
-	draw_colored_polygon(_map_outline_polygon, fill_color)
-	_draw_call_estimate += 1
 	_draw_map_outline()
 
 
 func _draw_map_outline() -> void:
-	draw_polyline(
-		_map_outline_line,
+	if _map_outline_segments.is_empty():
+		return
+
+	draw_multiline(
+		_map_outline_segments,
 		outline_color,
 		_get_screen_stable_line_width(map_outline_screen_width),
 		grid_line_antialiased
@@ -316,23 +315,27 @@ func _build_hex_polygon_points() -> PackedVector2Array:
 	return points
 
 
-func _build_map_outline_polygon() -> PackedVector2Array:
-	var points := PackedVector2Array()
-	points.resize(6)
-	var outline_radius := hex_radius * (float(map_radius) + 0.75)
-	for i in range(6):
-		var angle := deg_to_rad(30.0 + 60.0 * float(i))
-		points[i] = Vector2(cos(angle), sin(angle)) * outline_radius
-	return points
+func _build_map_outline_segments() -> PackedVector2Array:
+	var segments := PackedVector2Array()
+	if _base_polygon.size() != 6 or _hexes.is_empty():
+		return segments
 
+	var coord_lookup := {}
+	for coord in _hexes:
+		coord_lookup[coord] = true
 
-func _build_map_outline_line() -> PackedVector2Array:
-	var points := PackedVector2Array()
-	points.resize(7)
-	for i in range(6):
-		points[i] = _map_outline_polygon[i]
-	points[6] = _map_outline_polygon[0]
-	return points
+	for coord in _hexes:
+		var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
+		for direction_index in range(6):
+			var neighbor: Vector2i = coord + HexGridMath.direction(direction_index)
+			if coord_lookup.has(neighbor):
+				continue
+
+			var edge_index := 5 - direction_index
+			segments.append(center + _base_polygon[edge_index])
+			segments.append(center + _base_polygon[(edge_index + 1) % 6])
+
+	return segments
 
 
 func _get_camera_zoom() -> float:
