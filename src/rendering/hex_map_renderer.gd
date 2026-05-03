@@ -13,11 +13,13 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 		_rebuild_polygon()
 @export var cull_padding_hexes := 3
 @export var fill_color := Color.WHITE
-@export var outline_color := Color(0.02, 0.02, 0.02, 0.9)
+@export var outline_color := Color(0.0, 0.0, 0.0, 0.95)
 @export var axis_color := Color(0.0, 0.0, 0.0, 0.35)
-@export var simple_lod_zoom := 0.75
-@export var overview_lod_zoom := 0.5
-@export var grid_line_antialiased := false
+@export var simple_lod_zoom := 0.18
+@export var overview_lod_zoom := 0.1
+@export var grid_line_screen_width := 1.2
+@export var overview_line_screen_width := 1.5
+@export var grid_line_antialiased := true
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -31,6 +33,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 
 var _base_polygon := PackedVector2Array()
 var _map_outline_polygon := PackedVector2Array()
+var _map_outline_line := PackedVector2Array()
 var _scratch_polygon := PackedVector2Array()
 var _grid_line_points := PackedVector2Array()
 var _visible_centers := PackedVector2Array()
@@ -84,6 +87,7 @@ func get_debug_metrics() -> Dictionary:
 		"grid_visible": grid_visible,
 		"cell_grid_drawn": _cell_grid_drawn,
 		"debug_axis_visible": debug_axis_visible,
+		"grid_line_screen_width": grid_line_screen_width,
 		"grid_line_antialiased": grid_line_antialiased,
 	}
 
@@ -155,7 +159,12 @@ func _draw() -> void:
 	var submit_start := Time.get_ticks_usec()
 	_draw_debug_axis_lines()
 	if _line_point_count > 0:
-		draw_multiline(_grid_line_points, outline_color, 1.0, grid_line_antialiased)
+		draw_multiline(
+			_grid_line_points,
+			outline_color,
+			_get_screen_stable_line_width(grid_line_screen_width),
+			grid_line_antialiased
+		)
 		_draw_call_estimate += 1
 		_cell_grid_drawn = true
 	_submit_ms = _elapsed_ms(submit_start)
@@ -182,6 +191,7 @@ func _reset_draw_metrics() -> void:
 func _rebuild_map() -> void:
 	_hexes = HexGridMath.coords_in_radius(map_radius)
 	_map_outline_polygon = _build_map_outline_polygon()
+	_map_outline_line = _build_map_outline_line()
 	if is_inside_tree():
 		queue_redraw()
 
@@ -189,6 +199,7 @@ func _rebuild_map() -> void:
 func _rebuild_polygon() -> void:
 	_base_polygon = _build_hex_polygon_points()
 	_map_outline_polygon = _build_map_outline_polygon()
+	_map_outline_line = _build_map_outline_line()
 	_scratch_polygon.resize(6)
 	if is_inside_tree():
 		queue_redraw()
@@ -253,6 +264,13 @@ func _draw_simple_map() -> void:
 func _draw_overview_fill() -> void:
 	draw_colored_polygon(_map_outline_polygon, fill_color)
 	_draw_call_estimate += 1
+	draw_polyline(
+		_map_outline_line,
+		outline_color,
+		_get_screen_stable_line_width(overview_line_screen_width),
+		grid_line_antialiased
+	)
+	_draw_call_estimate += 1
 
 
 func _draw_debug_axis_lines() -> void:
@@ -300,6 +318,15 @@ func _build_map_outline_polygon() -> PackedVector2Array:
 	return points
 
 
+func _build_map_outline_line() -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(7)
+	for i in range(6):
+		points[i] = _map_outline_polygon[i]
+	points[6] = _map_outline_polygon[0]
+	return points
+
+
 func _get_camera_zoom() -> float:
 	var viewport := get_viewport()
 	if viewport == null:
@@ -316,6 +343,10 @@ func _get_lod_for_zoom(zoom: float) -> String:
 	if zoom <= simple_lod_zoom:
 		return "simple"
 	return "full"
+
+
+func _get_screen_stable_line_width(screen_width: float) -> float:
+	return screen_width / max(_get_camera_zoom(), 0.001)
 
 
 func _get_visible_world_rect() -> Rect2:

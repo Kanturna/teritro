@@ -22,7 +22,7 @@ a loose backlog.
 - Before visual polish, evaluate whether procedural vectors, TileMapLayer,
   MultiMesh, shaders, or another renderer should own the beauty layer.
 - Before closing renderer sign-off for Slice 4, manually record lab scene
-  metrics at zoom 1.0, 0.6, and 0.25 in the Godot editor.
+  metrics and line readability at zoom 1.0, 0.6, and 0.25 in the Godot editor.
 - Before adding any scan, AI, unit, economy, or renderer subsystem, define the
   debug metrics and test parameters that reveal its bottlenecks.
 - Before the first colony prototype, decide from Slice 4 measurements whether
@@ -45,16 +45,19 @@ a loose backlog.
   for re-evaluation.
 - Added renderer LOD and HUD metrics after min-zoom rendering exposed a
   bottleneck risk.
-- Added `G` as a grid visibility toggle so low-zoom views and later visual
-  modes can hide the cell grid when it becomes noise.
-- Hid debug axes by default, muted grid colors, and made simple/overview LOD
-  hide per-cell grid lines instead of drawing thousands of low-value edges.
+- Added `G` as a grid visibility toggle so debug and later visual modes can
+  hide the cell grid when it becomes noise.
+- Hid debug axes by default and muted the first dark-grid style before the lab
+  switched to a black-on-white grid.
 
 ### 2026-05-03 - Slice 4 renderer profiling
 
 - Added a scene-local DebugOverlay provider contract and renderer phase metrics.
 - Removed per-visible-hex `PackedVector2Array.resize()` from the full-grid draw
   path.
-- Made grid-line antialiasing a performance switch and defaulted it off.
+- Made grid-line antialiasing and screen-stable line width performance/quality
+  switches.
 - Added HUD detail, debug-axis, culling, line-point, and 60-frame draw/frame
   metrics for manual renderer review.
+- Kept the full cell grid visible through the current minimum zoom to avoid a
+  blank white overview.

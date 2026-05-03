@@ -30,13 +30,15 @@ func _run() -> void:
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
 	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom draws cell grid")
 	_assert_eq(renderer.get_debug_metrics()["debug_axis_visible"], false, "debug axes hidden by default")
+	_assert_eq(renderer.get_debug_metrics()["grid_line_antialiased"], true, "grid lines antialiased by default")
 
 	camera.zoom = Vector2.ONE * 0.6
-	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "mid zoom hides cell grid by LOD")
+	_assert_eq(renderer.get_current_lod_mode(), "full", "mid zoom keeps full grid")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "mid zoom keeps cell grid visible")
 
 	camera.zoom = Vector2.ONE * 0.25
-	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom LOD")
+	_assert_eq(renderer.get_current_lod_mode(), "full", "min zoom keeps full grid")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "min zoom keeps cell grid visible")
 
 	renderer.grid_visible = false
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], false, "grid visibility toggle off")

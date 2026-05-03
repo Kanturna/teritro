@@ -41,6 +41,7 @@ func _run() -> void:
 		"line_points",
 		"culled_map",
 		"culled_view",
+		"grid_line_screen_width",
 		"grid_line_antialiased",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)
@@ -52,16 +53,19 @@ func _run() -> void:
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], true, "grid visible by default")
 	_send_key(scene, KEY_G)
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], false, "G toggles grid")
+	_send_key(scene, KEY_G)
+	_assert_eq(renderer.get_debug_metrics()["grid_visible"], true, "G toggles grid back on")
 
 	camera.zoom = Vector2.ONE
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
 
 	camera.zoom = Vector2.ONE * 0.6
-	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "simple LOD hides cell grid")
+	_assert_eq(renderer.get_current_lod_mode(), "full", "mid zoom keeps full grid")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "mid zoom keeps cell grid visible")
 
 	camera.zoom = Vector2.ONE * 0.25
-	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom LOD")
+	_assert_eq(renderer.get_current_lod_mode(), "full", "min zoom keeps full grid")
+	_assert_eq(renderer.will_draw_cell_grid(), true, "min zoom keeps cell grid visible")
 
 	if _failures.is_empty():
 		print("Hex debug metrics tests passed.")
