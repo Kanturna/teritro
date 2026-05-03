@@ -67,3 +67,15 @@ a loose backlog.
   even weight and fewer line points.
 - Added adaptive grid antialiasing under a line-point limit to reduce frayed
   edge artifacts without reintroducing low-zoom draw cost.
+
+### 2026-05-03 - Slice 4 review
+
+- Plan-stated LOD thresholds and antialiasing defaults drifted during
+  implementation, causing severe low-zoom FPS regression.
+- Slice 3 and Slice 4 plans did not name the renderer's quality dimensions,
+  likely failure modes, acceptance checks, or tradeoff boundaries up front.
+  Several artifacts surfaced only through post-implementation observation.
+- A plan attempt also contained unverified repo-state assumptions, showing that
+  plan claims need current source verification.
+- Lesson captured as `Plan Value Binding` and `Quality Gates For System
+  Slices` in `docs/WORKFLOW.md`. Future non-trivial system slices follow both.

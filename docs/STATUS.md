@@ -8,14 +8,13 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 4 - Renderer Profiling & Debug Foundation v0.1
+Slice 4.5 - System Quality Gates & Plan Value Binding v0.1
 
 ## Implemented (this slice)
 
-Added a scene-local DebugOverlay provider contract, renderer phase metrics,
-60-frame HUD history, axis/HUD toggles, and local `_draw()` optimizations for
-the procedural hex renderer. No colony, ownership, expansion, or simulation
-rules beyond generic hex math.
+Added workflow rules for Plan Value Binding and Quality Gates For System
+Slices. Documented the Slice 4 renderer-review lesson without changing runtime
+or simulation files.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -25,6 +24,7 @@ changes, remove old slice contents instead of growing this file into history.
 - Colony spawn, ownership, expansion, Turn-Rule validation, and enclosure-fill.
 - AI, units, combat, economy, balancing, and beauty/shader polish.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
+- Renderer-specific rules documentation.
 - Hooks, automations, feature branches, pushes, or PRs.
 
 ## Out of Scope
@@ -33,12 +33,13 @@ changes, remove old slice contents instead of growing this file into history.
 - Enclosure-fill and contested-border semantics.
 - New external assets or addons.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
+- Runtime, scene, rendering, simulation, or test-code changes.
 - Hooks, automations, feature branches, pushes, PRs.
 
 ## Validation
 
-Godot/headless checks are required for Slice 4 because runtime files changed.
-Manual visual/performance checks in the Godot editor remain a review gate.
+Slice 4.5 is documentation-only. `git diff --check` and manual Markdown review
+are required; no Godot run is needed.
 
 ## State Rule
 

@@ -35,9 +35,20 @@ should have one coherent purpose, a review path, and a validation path. Do not
 split coherent work into artificial micro-slices, and do not bundle unrelated
 work to reduce slice count.
 
-Plan-stated defaults, thresholds, limits, and gates are implementation
-constraints. Changing them needs explicit user instruction, a revised plan, or a
-documented mini-slice; do not silently drift them in code.
+## Plan Value Binding
+
+Parameter values stated in a plan are binding for the implementation of that
+slice. This includes defaults, thresholds, gates, limits, sample sizes, timing
+budgets, quality dimensions, and tradeoff boundaries.
+
+Plan claims about repo state must also be verified before they are used. This
+includes existing files, existing sections, previous content, current behavior,
+and current diffs. If a claim was not verified, mark it explicitly as an
+assumption.
+
+If a plan value or repo-state claim turns out to be wrong during
+implementation, do not change it silently. Revise the plan, add an ADR, or ask
+for an explicit user decision.
 
 ## Commit Suggestions
 
@@ -137,3 +148,25 @@ Questions / Decisions Pending User.
 
 The First Reviewer Brief must name concrete review tasks. Generic "please
 review" is not enough.
+
+## Quality Gates For System Slices
+
+Before implementing a non-trivial system slice, define the system's relevant
+quality dimensions, likely failure modes, acceptance checks, and tradeoff
+boundaries. Do this even when the slice appears technically simple.
+
+The plan must name:
+
+- Functional goal: what must work.
+- Quality dimensions in scope: qualities the slice commits to. Common examples
+  are performance, correctness, debuggability, visual clarity, UX, determinism,
+  maintainability, extensibility, testability, and observability.
+- Quality dimensions out of scope: qualities intentionally deferred.
+- Known failure modes: predictable problems for this kind of system.
+- Acceptance checks: concrete observable conditions, manual or automated.
+- Tradeoff boundaries: which qualities may be sacrificed, and which may not.
+
+If a quality issue appears during implementation, fix it inside the slice when
+it is low-risk and coherent. Otherwise record it as a finding with a trigger
+before dependent work continues. Quality dimensions and tradeoff boundaries
+follow Plan Value Binding; they are binding, not advisory.
