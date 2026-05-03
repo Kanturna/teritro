@@ -111,6 +111,18 @@ When the slice has Quality Gates, the review request should reference the
 plan's acceptance checks directly. Reviewers verify these checks first, then
 raise additional concerns.
 
+## Post-Implementation Evaluation Check
+
+After implementing code, decide whether another agent should evaluate the
+result. Use an evaluation prompt when the change is bug-prone, touches runtime
+behavior, performance, rendering, simulation rules, persistent state,
+cross-layer contracts, tests, or user-facing output.
+
+If evaluation is useful, include a concrete evaluation prompt in the completion
+report. It should name the goal, changed files or subsystems, quality gates,
+validation already run, known risks, and exact questions for the reviewer. If
+evaluation is not useful, state why briefly.
+
 ## External Evaluation Intake
 
 Treat external reviews as structured findings. For each concrete finding,

@@ -42,6 +42,7 @@ Every completed slice must include:
 - Documentation sync
 - Risks / follow-up
 - External review dispositions, when applicable
+- Post-implementation evaluation prompt, or why none is needed
 - Review handoff stance
 - Suggested commit title matching the current open diff
 - Suggested commit body matching the current open diff
