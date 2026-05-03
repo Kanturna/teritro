@@ -19,6 +19,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var overview_lod_zoom := 0.1
 @export var grid_line_screen_width := 1.2
 @export var overview_line_screen_width := 1.5
+@export var map_outline_screen_width := 2.0
 @export var grid_line_antialiased := true
 @export var debug_axis_visible := false:
 	set(value):
@@ -88,6 +89,7 @@ func get_debug_metrics() -> Dictionary:
 		"cell_grid_drawn": _cell_grid_drawn,
 		"debug_axis_visible": debug_axis_visible,
 		"grid_line_screen_width": grid_line_screen_width,
+		"map_outline_screen_width": map_outline_screen_width,
 		"grid_line_antialiased": grid_line_antialiased,
 	}
 
@@ -138,6 +140,7 @@ func _draw() -> void:
 
 	if not grid_visible:
 		var hidden_submit_start := Time.get_ticks_usec()
+		_draw_map_outline()
 		_draw_debug_axis_lines()
 		_submit_ms = _elapsed_ms(hidden_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
@@ -157,6 +160,7 @@ func _draw() -> void:
 	_line_build_ms = _elapsed_ms(line_build_start)
 
 	var submit_start := Time.get_ticks_usec()
+	_draw_map_outline()
 	_draw_debug_axis_lines()
 	if _line_point_count > 0:
 		draw_multiline(
@@ -264,10 +268,14 @@ func _draw_simple_map() -> void:
 func _draw_overview_fill() -> void:
 	draw_colored_polygon(_map_outline_polygon, fill_color)
 	_draw_call_estimate += 1
+	_draw_map_outline()
+
+
+func _draw_map_outline() -> void:
 	draw_polyline(
 		_map_outline_line,
 		outline_color,
-		_get_screen_stable_line_width(overview_line_screen_width),
+		_get_screen_stable_line_width(map_outline_screen_width),
 		grid_line_antialiased
 	)
 	_draw_call_estimate += 1

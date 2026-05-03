@@ -42,6 +42,7 @@ func _run() -> void:
 		"culled_map",
 		"culled_view",
 		"grid_line_screen_width",
+		"map_outline_screen_width",
 		"grid_line_antialiased",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)

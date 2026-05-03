@@ -61,3 +61,5 @@ a loose backlog.
   metrics for manual renderer review.
 - Kept the full cell grid visible through the current minimum zoom to avoid a
   blank white overview.
+- Kept the map outline visible when the cell grid is toggled off, so the lab
+  still has orientation on a white background.

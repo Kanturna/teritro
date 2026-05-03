@@ -42,6 +42,7 @@ func _run() -> void:
 
 	renderer.grid_visible = false
 	_assert_eq(renderer.get_debug_metrics()["grid_visible"], false, "grid visibility toggle off")
+	_assert_eq(renderer.will_draw_cell_grid(), false, "hidden grid does not draw cell grid")
 
 	if _failures.is_empty():
 		print("Hex lab smoke tests passed.")
