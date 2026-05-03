@@ -45,6 +45,9 @@ func _run() -> void:
 		"map_outline_screen_width",
 		"map_outline_segments",
 		"grid_line_antialiased",
+		"grid_line_auto_antialias",
+		"grid_line_effective_antialiased",
+		"grid_antialias_line_point_limit",
 	]:
 		_assert_eq(metrics.has(key), true, "renderer metric key %s" % key)
 	_assert_eq(metrics["map_outline_segments"], 966, "radius 80 map outline segment count")
@@ -68,6 +71,8 @@ func _run() -> void:
 		metrics["line_points"] > 0 and metrics["line_points"] < metrics["drawn"] * 12,
 		"full grid uses deduplicated shared edges"
 	)
+	_assert_eq(metrics["grid_line_antialiased"], false, "manual grid antialiasing default")
+	_assert_eq(metrics["grid_line_effective_antialiased"], true, "auto antialiasing activates under line-point limit")
 
 	camera.zoom = Vector2.ONE * 0.6
 	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom uses simple LOD")

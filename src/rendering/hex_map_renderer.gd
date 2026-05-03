@@ -21,6 +21,8 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var overview_line_screen_width := 1.5
 @export var map_outline_screen_width := 2.0
 @export var grid_line_antialiased := false
+@export var grid_line_auto_antialias := true
+@export var grid_antialias_line_point_limit := 40000
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -55,6 +57,7 @@ var _submit_ms := 0.0
 var _line_point_count := 0
 var _lod_mode := "full"
 var _cell_grid_drawn := false
+var _grid_line_effective_antialiased := false
 
 
 func _ready() -> void:
@@ -93,6 +96,9 @@ func get_debug_metrics() -> Dictionary:
 		"map_outline_screen_width": map_outline_screen_width,
 		"map_outline_segments": int(_map_outline_segments.size() / 2),
 		"grid_line_antialiased": grid_line_antialiased,
+		"grid_line_auto_antialias": grid_line_auto_antialias,
+		"grid_line_effective_antialiased": _grid_line_effective_antialiased,
+		"grid_antialias_line_point_limit": grid_antialias_line_point_limit,
 	}
 
 
@@ -165,11 +171,12 @@ func _draw() -> void:
 	_draw_map_outline()
 	_draw_debug_axis_lines()
 	if _line_point_count > 0:
+		_grid_line_effective_antialiased = _should_antialias_grid_lines()
 		draw_multiline(
 			_grid_line_points,
 			outline_color,
 			_get_screen_stable_line_width(grid_line_screen_width),
-			grid_line_antialiased
+			_grid_line_effective_antialiased
 		)
 		_draw_call_estimate += 1
 		_cell_grid_drawn = true
@@ -192,6 +199,7 @@ func _reset_draw_metrics() -> void:
 	_submit_ms = 0.0
 	_line_point_count = 0
 	_cell_grid_drawn = false
+	_grid_line_effective_antialiased = false
 
 
 func _rebuild_map() -> void:
@@ -270,6 +278,12 @@ func _is_coord_before(a: Vector2i, b: Vector2i) -> bool:
 	if a.x == b.x:
 		return a.y < b.y
 	return a.x < b.x
+
+
+func _should_antialias_grid_lines() -> bool:
+	if grid_line_antialiased:
+		return true
+	return grid_line_auto_antialias and _line_point_count <= grid_antialias_line_point_limit
 
 
 func _draw_overview_map() -> void:

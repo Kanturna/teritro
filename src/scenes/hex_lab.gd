@@ -126,6 +126,9 @@ func _update_hud(frame_ms: float) -> void:
 	var grid_status := "off"
 	if metrics["grid_visible"]:
 		grid_status = "drawn" if metrics["cell_grid_drawn"] else "hidden by LOD"
+	var aa_status := "on" if metrics["grid_line_effective_antialiased"] else "off"
+	if metrics["grid_line_auto_antialias"] and not metrics["grid_line_antialiased"]:
+		aa_status = "auto-on" if metrics["grid_line_effective_antialiased"] else "auto-off"
 
 	var text := (
 		"Teritro Hex Lab\n"
@@ -166,7 +169,7 @@ func _update_hud(frame_ms: float) -> void:
 				draw_stats["min"],
 				draw_stats["avg"],
 				draw_stats["max"],
-				"on" if metrics["grid_line_antialiased"] else "off",
+				aa_status,
 			]
 		)
 

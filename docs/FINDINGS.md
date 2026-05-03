@@ -65,3 +65,5 @@ a loose backlog.
   off, so the lab still has orientation on a white background.
 - Deduplicated shared full-grid edges so interior hex lines render with more
   even weight and fewer line points.
+- Added adaptive grid antialiasing under a line-point limit to reduce frayed
+  edge artifacts without reintroducing low-zoom draw cost.
