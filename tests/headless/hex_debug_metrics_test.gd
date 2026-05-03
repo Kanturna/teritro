@@ -34,6 +34,8 @@ func _run() -> void:
 	_assert_eq(frame_stats["samples"], 2, "frame history sample count")
 	_assert_eq(frame_stats["min"], 16.0, "frame history min")
 	_assert_eq(frame_stats["max"], 20.0, "frame history max")
+	_assert_eq(overlay_metrics.has("last_snapshot_path"), true, "overlay snapshot path metric")
+	_assert_eq(overlay_metrics.has("last_snapshot_status"), true, "overlay snapshot status metric")
 
 	var metrics: Dictionary = renderer.get_debug_metrics()
 	for key in [
@@ -127,6 +129,7 @@ func _run() -> void:
 	await _assert_owned_cell_batch_path(renderer, camera)
 	await _assert_multimesh_preserves_per_colony_color(renderer)
 	_assert_grid_candidate_cap(renderer, camera)
+	_assert_snapshot_roundtrip(scene, debug_overlay, camera)
 
 	if _failures.is_empty():
 		print("Hex debug metrics tests passed.")
@@ -212,8 +215,14 @@ func _assert_multimesh_preserves_per_colony_color(renderer: Node) -> void:
 func _assert_grid_candidate_cap(renderer: Node, camera: Camera2D) -> void:
 	camera.zoom = Vector2.ONE
 	renderer.grid_visible = true
-	renderer.full_grid_candidate_limit = 6000
+	renderer.full_grid_candidate_limit = 3000
 	_assert_eq(renderer.will_draw_cell_grid(), true, "default zoom under grid candidate cap")
+
+	camera.zoom = Vector2.ONE * 0.87
+	_assert_eq(renderer.will_draw_cell_grid(), false, "problem zoom over grid candidate cap")
+	var capped_metrics: Dictionary = renderer.get_debug_metrics()
+	_assert_eq(capped_metrics["grid_suppressed_by_limit"], true, "problem zoom grid suppressed metric")
+	_assert_true(capped_metrics["estimated_full_grid_candidates"] > 3000, "problem zoom candidate count")
 
 	renderer.full_grid_candidate_limit = 1
 	_assert_eq(renderer.will_draw_cell_grid(), false, "low grid candidate cap suppresses full grid")
@@ -222,7 +231,50 @@ func _assert_grid_candidate_cap(renderer: Node, camera: Camera2D) -> void:
 	_assert_eq(metrics["full_grid_candidate_limit"], 1, "grid cap metric")
 	_assert_true(metrics["estimated_full_grid_candidates"] > 1, "estimated grid candidate count")
 
-	renderer.full_grid_candidate_limit = 6000
+	renderer.full_grid_candidate_limit = 3000
+
+
+func _assert_snapshot_roundtrip(scene: Node, debug_overlay: Node, camera: Camera2D) -> void:
+	var sim = scene._sim
+	sim.step_colony(1)
+	var context := {
+		"camera_position": camera.position,
+		"camera_zoom": camera.zoom.x,
+		"viewport_size": root.size,
+		"grid_status": "test",
+	}
+	var snapshot: Dictionary = debug_overlay.capture_snapshot("roundtrip", context)
+	_assert_eq(snapshot["version"], 1, "snapshot schema version")
+	_assert_eq(snapshot["providers"].has("renderer"), true, "snapshot renderer provider")
+	_assert_eq(snapshot["providers"].has("simulation"), true, "snapshot simulation provider")
+	_assert_true(
+		snapshot["providers"]["simulation"]["placements_total"] >= 1,
+		"snapshot reflects real simulation state"
+	)
+
+	var json_text := JSON.stringify(snapshot)
+	var parsed_direct = JSON.parse_string(json_text)
+	_assert_eq(parsed_direct["version"], 1, "snapshot serializes to JSON")
+
+	var path: String = debug_overlay.save_snapshot(snapshot)
+	_assert_true(not path.is_empty(), "snapshot save path")
+	_assert_true(path.begins_with("user://debug_snapshots/"), "snapshot saves under user path")
+	_assert_true(FileAccess.file_exists(path), "snapshot file exists")
+
+	var file_content := FileAccess.get_file_as_string(path)
+	var parsed = JSON.parse_string(file_content)
+	_assert_eq(parsed["version"], 1, "saved snapshot version")
+	_assert_true(
+		is_equal_approx(float(parsed["context"]["camera_zoom"]), float(context["camera_zoom"])),
+		"saved snapshot camera zoom"
+	)
+	_assert_eq(parsed["providers"].has("renderer"), true, "saved snapshot renderer provider")
+	_assert_eq(parsed["providers"].has("simulation"), true, "saved snapshot simulation provider")
+	_assert_true(
+		parsed["providers"]["simulation"]["placements_total"] >= 1,
+		"saved snapshot preserves simulation metrics"
+	)
+	_remove_snapshot_file(path)
 
 
 func _owned_cells_snapshot(radius: int) -> Dictionary:
@@ -230,6 +282,12 @@ func _owned_cells_snapshot(radius: int) -> Dictionary:
 	for coord in HexGridMath.coords_in_radius(radius):
 		owners[coord] = 1
 	return owners
+
+
+func _remove_snapshot_file(path: String) -> void:
+	var dir := DirAccess.open("user://debug_snapshots")
+	if dir != null:
+		dir.remove(path.get_file())
 
 
 func _assert_eq(actual, expected, label: String) -> void:

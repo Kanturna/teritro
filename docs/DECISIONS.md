@@ -199,3 +199,29 @@ Re-evaluation trigger: Reassess if grid/outline/axes require per-cell visual
 state, if `owned_batch_rebuild_ms` consistently exceeds 5 ms, if owned cells
 exceed about 10000, or if multi-colony rendering needs a different visual
 stacking or update strategy.
+
+Slice 8.2 update: `full_grid_candidate_limit` was lowered from `6000` to
+`3000` after user measurement showed roughly `5300` Full-Grid candidates and
+about `31 FPS` at zoom around `0.87`. Default zoom `1.0` remains below the cap.
+Reassess the value if default zoom is accidentally suppressed or if grid-on
+views become product-relevant.
+
+## ADR-012: Debug Snapshots As Performance Evidence
+
+Decision: Performance observations should be captured as JSON debug snapshots
+when a renderer, simulation, or debug subsystem is evaluated.
+
+Reason: Screenshots and recalled FPS numbers are useful for discussion but not
+machine-comparable. A snapshot with overlay, renderer, simulation, and lab
+context metrics gives agents a reproducible evidence format for future
+performance reviews.
+
+Implementation rule: `DebugOverlay` owns snapshot capture and file writing.
+Snapshots collect `get_debug_metrics()` from all registered providers and
+serialize Godot values into JSON-safe arrays or primitives. Snapshot files are
+runtime artifacts under `user://debug_snapshots`; they are not repo state and
+do not change simulation truth.
+
+Re-evaluation trigger: Reassess the schema before multi-colony, AI, units, or
+external comparison tooling require structured per-colony, per-agent, or
+scenario metadata that the v1 schema cannot represent clearly.

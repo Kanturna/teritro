@@ -24,7 +24,7 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var grid_line_antialiased := false
 @export var grid_line_auto_antialias := true
 @export var grid_antialias_line_point_limit := 40000
-@export var full_grid_candidate_limit := 6000
+@export var full_grid_candidate_limit := 3000
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -601,9 +601,15 @@ func _get_visible_axial_bounds() -> Rect2i:
 
 func _estimate_full_grid_candidate_count() -> int:
 	var bounds := _get_visible_axial_bounds()
-	var q_count := bounds.end.x - bounds.position.x + 1
-	var r_count := bounds.end.y - bounds.position.y + 1
-	return maxi(0, q_count * r_count)
+	var visible_rect := _get_visible_local_rect()
+	var count := 0
+	for q in range(bounds.position.x, bounds.end.x + 1):
+		for r in range(bounds.position.y, bounds.end.y + 1):
+			var coord := Vector2i(q, r)
+			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
+			if _is_inside_map(coord) and _hex_rect_intersects_view(center, visible_rect):
+				count += 1
+	return count
 
 
 func _elapsed_ms(start_usec: int) -> float:

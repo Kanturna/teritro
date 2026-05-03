@@ -3,6 +3,7 @@ extends Node2D
 const TerritorySim = preload("res://src/sim/territory_sim.gd")
 const TEST_COLONY_ID := 1
 const TEST_COLONY_START := Vector2i.ZERO
+const SNAPSHOT_MESSAGE_DURATION := 3.0
 
 @export var camera_base_speed := 700.0
 @export var camera_fast_multiplier := 3.0
@@ -28,6 +29,8 @@ var _middle_dragging := false
 var _last_camera_position := Vector2.INF
 var _last_camera_zoom := Vector2.INF
 var _last_renderer_lod := ""
+var _snapshot_message := ""
+var _snapshot_message_remaining := 0.0
 
 
 func _ready() -> void:
@@ -44,6 +47,7 @@ func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 	_smooth_zoom(delta)
 	_redraw_when_camera_changes()
+	_update_snapshot_message(delta)
 	var frame_ms := delta * 1000.0
 	_debug_overlay.sample_frame(frame_ms)
 	_update_hud(frame_ms)
@@ -68,6 +72,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_debug_overlay.toggle_detail_mode()
 		elif event.keycode == KEY_R:
 			_reset_sim()
+		elif event.keycode == KEY_P:
+			_capture_debug_snapshot()
 
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
@@ -141,6 +147,45 @@ func _apply_sim_snapshot() -> void:
 	_renderer.set_territory_snapshot(_sim.get_render_snapshot(), _colony_colors)
 
 
+func _capture_debug_snapshot() -> void:
+	var snapshot: Dictionary = _debug_overlay.capture_snapshot(
+		"hex_lab",
+		_build_snapshot_context()
+	)
+	var path: String = _debug_overlay.save_snapshot(snapshot)
+	if path.is_empty():
+		var overlay_metrics: Dictionary = _debug_overlay.get_debug_metrics()
+		_snapshot_message = "Snapshot failed: %s" % overlay_metrics["last_snapshot_status"]
+	else:
+		_snapshot_message = "Snapshot saved: %s" % path.get_file()
+	_snapshot_message_remaining = SNAPSHOT_MESSAGE_DURATION
+
+
+func _build_snapshot_context() -> Dictionary:
+	var renderer_metrics: Dictionary = _renderer.get_debug_metrics()
+	var sim_metrics: Dictionary = _sim.get_debug_metrics()
+	return {
+		"camera_position": _camera.position,
+		"camera_zoom": _camera.zoom.x,
+		"viewport_size": get_viewport_rect().size,
+		"grid_visible": renderer_metrics["grid_visible"],
+		"grid_status": _get_grid_status(renderer_metrics),
+		"lod": _renderer.get_current_lod_mode(),
+		"map_radius": _renderer.map_radius,
+		"owned_cells_total": sim_metrics["owned_cells_total"],
+		"auto_step_interval": auto_step_interval,
+	}
+
+
+func _update_snapshot_message(delta: float) -> void:
+	if _snapshot_message_remaining <= 0.0:
+		return
+
+	_snapshot_message_remaining = maxf(0.0, _snapshot_message_remaining - delta)
+	if _snapshot_message_remaining == 0.0:
+		_snapshot_message = ""
+
+
 func _redraw_when_camera_changes() -> void:
 	var current_lod: String = _renderer.get_current_lod_mode()
 	var lod_changed: bool = current_lod != _last_renderer_lod
@@ -165,14 +210,7 @@ func _update_hud(frame_ms: float) -> void:
 	var overlay_metrics: Dictionary = _debug_overlay.get_debug_metrics()
 	var frame_stats: Dictionary = overlay_metrics["frame_ms"]
 	var draw_stats: Dictionary = overlay_metrics["renderer_draw_ms"]
-	var grid_status := "off"
-	if metrics["grid_visible"]:
-		if metrics["cell_grid_drawn"]:
-			grid_status = "drawn"
-		elif metrics["grid_suppressed_by_limit"]:
-			grid_status = "hidden by cap"
-		else:
-			grid_status = "hidden by LOD"
+	var grid_status := _get_grid_status(metrics)
 	var aa_status := "on" if metrics["grid_line_effective_antialiased"] else "off"
 	if metrics["grid_line_auto_antialias"] and not metrics["grid_line_antialiased"]:
 		aa_status = "auto-on" if metrics["grid_line_effective_antialiased"] else "auto-off"
@@ -269,9 +307,22 @@ func _update_hud(frame_ms: float) -> void:
 			]
 		)
 
+	if not _snapshot_message.is_empty():
+		text += "%s\n" % _snapshot_message
+
 	text += (
 		"WASD/Arrows pan | Shift fast | MMB drag\n"
-		+ "Mouse wheel zoom | G grid | X axes | H HUD | C camera | R sim"
+		+ "Mouse wheel zoom | G grid | X axes | H HUD | C camera | R sim | P snapshot"
 	)
 
 	_stats_label.text = text
+
+
+func _get_grid_status(metrics: Dictionary) -> String:
+	if not metrics["grid_visible"]:
+		return "off"
+	if metrics["cell_grid_drawn"]:
+		return "drawn"
+	if metrics["grid_suppressed_by_limit"]:
+		return "hidden by cap"
+	return "hidden by LOD"

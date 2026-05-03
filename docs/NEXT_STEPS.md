@@ -5,20 +5,19 @@ every idea.
 
 ## Current Slice
 
-Slice 8 - Batched Territory Rendering & Grid Guard v0.1
+Slice 8.2 - Debug Snapshot & Grid-Cap Calibration v0.1
 
-## Slice 8 Exit Criteria
+## Slice 8.2 Exit Criteria
 
-- `docs/PLAN_SLICE_8.md` records the accepted reviewed plan.
-- Owned cells render through one internal `MultiMeshInstance2D` batch helper.
-- Renderer creates no per-cell nodes and does not use per-cell `_draw()`
-  polygons for territory fill.
-- Renderer metrics expose owned batch instances, rebuild cost, render mode, and
-  grid-cap status.
-- Synthetic tests cover 500+ owned cells, per-colony colors, batch draw-call
-  shape, and grid-cap suppression.
-- ADR-011 documents the hybrid renderer relationship to ADR-007.
-- `FINDINGS.md` records the next trigger for incremental MultiMesh updates.
+- `docs/PLAN_SLICE_8_2.md` records the accepted reviewed plan.
+- `P` captures a JSON snapshot under `user://debug_snapshots`.
+- Snapshot data includes overlay, renderer, simulation, and lab context metrics.
+- Snapshot save/read JSON roundtrip and live-provider content are tested.
+- `full_grid_candidate_limit` defaults to `3000`.
+- Default zoom `1.0` still draws the grid.
+- Full-LOD candidate areas over the cap hide the debug grid honestly in HUD and
+  metrics.
+- ADR-011/ADR-012 document the cap change and snapshot evidence format.
 - `git diff --check` passes.
 
 ## Branching
@@ -26,10 +25,10 @@ Slice 8 - Batched Territory Rendering & Grid Guard v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 8.2 - Renderer Follow-Up Measurement v0.1
+## Proposed Slice 8.3 - Renderer Follow-Up Measurement v0.1
 
 - Manually measure grid off/on performance after MultiMesh batching at about
-  500, 1000, and 2000 owned cells.
+  500, 1000, and 2000 owned cells using JSON snapshots.
 - Decide whether grid rendering needs a stricter LOD threshold, visible-cell
   cap tuning, shader, TileMapLayer, or chunk renderer before grid-on zoom-out
   views are product-relevant.

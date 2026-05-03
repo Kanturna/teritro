@@ -33,8 +33,9 @@ a loose backlog.
   `owned_batch_rebuild_ms` consistently exceeds 5 ms, evaluate incremental
   MultiMesh updates that apply only changed cells instead of rebuilding the
   entire batch.
-- Before grid-on zoom-out views become product-relevant, add a stricter grid
-  LOD threshold or visible-cell cap.
+- Before grid-on zoom-out views become product-relevant, decide whether the
+  debug grid should move to shader, chunked mesh, TileMapLayer, or another
+  non-`_draw()` render path.
 - Before implementing multi-colony ticks, make changed-cell metrics accumulate
   multiple placements per tick instead of representing only one placement.
 - Before allowing nested enclosure patterns as a product requirement, decide
@@ -164,3 +165,16 @@ a loose backlog.
   views are suppressed before excessive line building starts.
 - Known-open enclosure caches, stricter enclosure triggers, and larger grid
   renderer changes remain follow-up decisions.
+
+### 2026-05-03 - Slice 8.2 debug snapshot and grid-cap calibration
+
+- User testing confirmed owned-cell rendering no longer meaningfully drives FPS
+  drops when the grid is off, even as territory grows.
+- Grid-on Full-LOD movement remains the main renderer cost; a measured case
+  around `5300` candidates and `20778` line points dropped to about `31 FPS`.
+- The Full-Grid candidate cap was lowered from `6000` to `3000` so the debug
+  grid hides before that known expensive view.
+- Debug snapshots under `user://debug_snapshots` are now the preferred evidence
+  format for future performance review.
+- Terrain and natural-world visuals remain separate from the debug grid and
+  should use batched, chunked, tiled, or shader-based render paths later.

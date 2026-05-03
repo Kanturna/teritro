@@ -63,6 +63,24 @@ func _run() -> void:
 	_assert_eq(sim_metrics["placements_total"], 0, "R reset clears placements")
 	_assert_eq(renderer.get_debug_metrics()["owned_cells_total"], 1, "R reset updates renderer snapshot")
 
+	_send_key(scene, KEY_P)
+	scene._process(0.016)
+	await process_frame
+	var overlay_metrics: Dictionary = debug_overlay.get_debug_metrics()
+	_assert_eq(overlay_metrics["last_snapshot_status"], "saved", "P saves debug snapshot")
+	_assert_true(
+		str(overlay_metrics["last_snapshot_path"]).begins_with("user://debug_snapshots/"),
+		"P snapshot uses user path"
+	)
+	_assert_true(
+		FileAccess.file_exists(overlay_metrics["last_snapshot_path"]),
+		"P snapshot file exists"
+	)
+	_remove_snapshot_file(overlay_metrics["last_snapshot_path"])
+	var label: Label = scene.get_node("HUD/StatsLabel")
+	_assert_true(label.text.contains("P snapshot"), "HUD lists snapshot hotkey")
+	_assert_true(label.text.contains("Snapshot saved:"), "HUD confirms snapshot save")
+
 	var sim = scene._sim
 	var center := Vector2i(3, 0)
 	var ring := _ring_cells(center)
@@ -136,3 +154,9 @@ func _apply_owned_cells(
 	colony.last_placement_direction = last_placement_direction
 	colony.placements_total = maxi(0, cells.size() - 1)
 	colony.stalled = false
+
+
+func _remove_snapshot_file(path: String) -> void:
+	var dir := DirAccess.open("user://debug_snapshots")
+	if dir != null:
+		dir.remove(path.get_file())
