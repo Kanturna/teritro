@@ -29,9 +29,12 @@ a loose backlog.
 - Before AI policy lands, refactor `step_colony()` into a validated action
   surface such as `get_legal_actions()` plus `apply_action()` so agents choose
   intentions without gaining simulation authority.
-- Before owned-cell sets exceed about 5000 cells or multi-colony rendering
-  lands, refactor owned-cell rendering to iterate visible owned cells instead
-  of every owned cell.
+- Before owned-cell sets exceed about 500 cells, camera-movement FPS drops with
+  the current owned-cell count, or multi-colony rendering lands, refactor
+  owned-cell rendering toward MultiMesh, chunks, TileMapLayer, or another
+  batched path.
+- Before grid-on zoom-out views become product-relevant, add a stricter grid
+  LOD threshold or visible-cell cap.
 - Before implementing multi-colony ticks, make changed-cell metrics accumulate
   multiple placements per tick instead of representing only one placement.
 - Before allowing nested enclosure patterns as a product requirement, decide
@@ -139,3 +142,14 @@ a loose backlog.
   the region open/no-fill.
 - Auto-filled cells change ownership but do not change `last_placed_cell`,
   `last_placement_direction`, or active `placements_total`.
+
+### 2026-05-03 - Slice 7.1 performance review
+
+- User testing showed two immediate bottlenecks after Slice 7: camera movement
+  redrew owned cells every frame, and open enclosure regions could hit the old
+  3000-cell cap with about 20 ms spikes.
+- Slice 7.1 keeps the short-term procedural renderer but stops owned cells from
+  forcing camera redraw when the full cell grid is hidden.
+- Enclosure scans now use an adaptive effective cap. MultiMesh rendering,
+  known-open enclosure caches, stricter closure triggers, and grid LOD work are
+  deferred to a dedicated performance architecture slice.

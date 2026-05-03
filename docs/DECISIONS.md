@@ -165,10 +165,14 @@ automatic workload.
 Implementation rule: Skip enclosure resolution unless the placed cell has at
 least two same-colony neighbors. Flood-fill only from unowned in-bounds
 neighbors of the placed cell, track step-local visited empty cells, and cap each
-step at `enclosure_scan_cell_limit`. Regions touching map edge, out-of-bounds
-space, or a non-self colony are treated as open and are not filled. Auto-filled
-cells update ownership but do not update active placement state.
+step at an adaptive effective limit:
+`min(enclosure_scan_cell_limit, max(50, owned_cells / 2))`. Regions touching map
+edge, out-of-bounds space, or a non-self colony are treated as open and are not
+filled. Auto-filled cells update ownership but do not update active placement
+state.
 
 Re-evaluation trigger: Reassess if legitimate enclosed regions exceed the
-3000-cell safety cap, if `enclosure_ms` exceeds 5 ms, before multi-colony spawn,
-or before nested enclosure behavior becomes a product requirement.
+adaptive safety cap, if `enclosure_ms` exceeds 5 ms, if visual playtests show
+missed legitimate enclosures because the adaptive cap is too tight, before
+multi-colony spawn, or before nested enclosure behavior becomes a product
+requirement.

@@ -57,6 +57,7 @@ var _enclosure_regions_checked_last_step := 0
 var _enclosure_visited_cells_last_step := 0
 var _enclosure_filled_cells_last_step := 0
 var _enclosure_aborted_regions_last_step := 0
+var _enclosure_effective_scan_limit_last_step := 0
 var _enclosure_ms := 0.0
 var _enclosures_total := 0
 var _enclosure_filled_cells_total := 0
@@ -218,6 +219,7 @@ func get_debug_metrics() -> Dictionary:
 		"enclosure_visited_cells_last_step": _enclosure_visited_cells_last_step,
 		"enclosure_filled_cells_last_step": _enclosure_filled_cells_last_step,
 		"enclosure_aborted_regions_last_step": _enclosure_aborted_regions_last_step,
+		"enclosure_effective_scan_limit_last_step": _enclosure_effective_scan_limit_last_step,
 		"enclosure_ms": _enclosure_ms,
 		"enclosures_total": _enclosures_total,
 		"enclosure_filled_cells_total": _enclosure_filled_cells_total,
@@ -261,6 +263,7 @@ func _resolve_enclosures_after_placement(colony: ColonyState, placed_cell: Vecto
 
 	var start_usec := Time.get_ticks_usec()
 	var step_enclosure_visited: Dictionary = {}
+	_enclosure_effective_scan_limit_last_step = _get_effective_enclosure_scan_limit(colony)
 
 	for direction_index in range(6):
 		var neighbor: Vector2i = placed_cell + HexGridMath.direction(direction_index)
@@ -275,7 +278,8 @@ func _resolve_enclosures_after_placement(colony: ColonyState, placed_cell: Vecto
 		var region_result := _scan_empty_region_for_enclosure(
 			neighbor,
 			colony.id,
-			step_enclosure_visited
+			step_enclosure_visited,
+			_enclosure_effective_scan_limit_last_step
 		)
 		if region_result["aborted"]:
 			_enclosure_aborted_regions_last_step += 1
@@ -301,7 +305,8 @@ func _count_same_colony_neighbors(coord: Vector2i, colony_id: int) -> int:
 func _scan_empty_region_for_enclosure(
 	start: Vector2i,
 	colony_id: int,
-	step_enclosure_visited: Dictionary
+	step_enclosure_visited: Dictionary,
+	scan_limit: int
 ) -> Dictionary:
 	var queue: Array[Vector2i] = [start]
 	var queue_index := 0
@@ -311,15 +316,15 @@ func _scan_empty_region_for_enclosure(
 	step_enclosure_visited[start] = true
 
 	while queue_index < queue.size():
+		if cells.size() >= scan_limit:
+			aborted = true
+			closed = false
+			break
+
 		var cell := queue[queue_index]
 		queue_index += 1
 		cells.append(cell)
 		_enclosure_visited_cells_last_step += 1
-
-		if cells.size() > enclosure_scan_cell_limit:
-			aborted = true
-			closed = false
-			break
 
 		for direction_index in range(6):
 			var neighbor: Vector2i = cell + HexGridMath.direction(direction_index)
@@ -344,6 +349,11 @@ func _scan_empty_region_for_enclosure(
 		"aborted": aborted,
 		"cells": cells,
 	}
+
+
+func _get_effective_enclosure_scan_limit(colony: ColonyState) -> int:
+	var half_owned := floori(float(colony.owned_cells.size()) / 2.0)
+	return mini(maxi(0, enclosure_scan_cell_limit), maxi(50, half_owned))
 
 
 func _fill_enclosed_region(colony: ColonyState, cells: Array[Vector2i]) -> void:
@@ -427,6 +437,7 @@ func _reset_step_metrics() -> void:
 	_enclosure_visited_cells_last_step = 0
 	_enclosure_filled_cells_last_step = 0
 	_enclosure_aborted_regions_last_step = 0
+	_enclosure_effective_scan_limit_last_step = 0
 	_enclosure_ms = 0.0
 
 

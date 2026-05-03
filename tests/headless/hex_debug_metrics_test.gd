@@ -80,6 +80,7 @@ func _run() -> void:
 		"enclosure_visited_cells_last_step",
 		"enclosure_filled_cells_last_step",
 		"enclosure_aborted_regions_last_step",
+		"enclosure_effective_scan_limit_last_step",
 		"enclosure_ms",
 		"enclosures_total",
 		"enclosure_filled_cells_total",
@@ -110,15 +111,7 @@ func _run() -> void:
 	_assert_eq(metrics["grid_line_antialiased"], false, "manual grid antialiasing default")
 	_assert_eq(metrics["grid_line_effective_antialiased"], true, "auto antialiasing activates under line-point limit")
 
-	camera.zoom = Vector2.ONE * 0.6
-	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom uses simple LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "mid zoom hides cell grid by LOD")
-	_assert_eq(renderer.needs_camera_redraw(), true, "owned cells redraw when panning in simple LOD")
-
-	camera.zoom = Vector2.ONE * 0.25
-	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom uses overview LOD")
-	_assert_eq(renderer.will_draw_cell_grid(), false, "min zoom hides cell grid by LOD")
-	_assert_eq(renderer.needs_camera_redraw(), true, "owned cells redraw when panning in overview LOD")
+	_assert_camera_redraw_matrix(renderer, camera)
 
 	if _failures.is_empty():
 		print("Hex debug metrics tests passed.")
@@ -135,6 +128,31 @@ func _send_key(target: Node, keycode: Key) -> void:
 	event.pressed = true
 	event.echo = false
 	target._unhandled_input(event)
+
+
+func _assert_camera_redraw_matrix(renderer: Node, camera: Camera2D) -> void:
+	var cases := [
+		{"zoom": 0.25, "grid": true, "lod": "overview", "redraw": false},
+		{"zoom": 0.25, "grid": false, "lod": "overview", "redraw": false},
+		{"zoom": 0.6, "grid": true, "lod": "simple", "redraw": false},
+		{"zoom": 0.6, "grid": false, "lod": "simple", "redraw": false},
+		{"zoom": 1.0, "grid": true, "lod": "full", "redraw": true},
+		{"zoom": 1.0, "grid": false, "lod": "full", "redraw": false},
+	]
+
+	for test_case in cases:
+		camera.zoom = Vector2.ONE * float(test_case["zoom"])
+		renderer.grid_visible = bool(test_case["grid"])
+		_assert_eq(
+			renderer.get_current_lod_mode(),
+			test_case["lod"],
+			"LOD matrix zoom %.2f grid %s" % [test_case["zoom"], test_case["grid"]]
+		)
+		_assert_eq(
+			renderer.needs_camera_redraw(),
+			test_case["redraw"],
+			"camera redraw matrix zoom %.2f grid %s" % [test_case["zoom"], test_case["grid"]]
+		)
 
 
 func _assert_eq(actual, expected, label: String) -> void:

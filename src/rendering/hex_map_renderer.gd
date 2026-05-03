@@ -124,7 +124,7 @@ func will_draw_cell_grid() -> bool:
 
 
 func needs_camera_redraw() -> bool:
-	return will_draw_cell_grid() or not _owned_cells.is_empty()
+	return will_draw_cell_grid()
 
 
 func estimate_visible_hex_count() -> int:
@@ -147,7 +147,7 @@ func _draw() -> void:
 
 	if _lod_mode == "overview":
 		var overview_submit_start := Time.get_ticks_usec()
-		_draw_owned_cells(_get_visible_local_rect())
+		_draw_owned_cells(_get_visible_local_rect(), false)
 		_draw_overview_map()
 		_submit_ms = _elapsed_ms(overview_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
@@ -155,7 +155,7 @@ func _draw() -> void:
 
 	if _lod_mode == "simple":
 		var simple_submit_start := Time.get_ticks_usec()
-		_draw_owned_cells(_get_visible_local_rect())
+		_draw_owned_cells(_get_visible_local_rect(), false)
 		_draw_simple_map()
 		_submit_ms = _elapsed_ms(simple_submit_start)
 		_draw_ms = _elapsed_ms(start_usec)
@@ -163,7 +163,7 @@ func _draw() -> void:
 
 	if not grid_visible:
 		var hidden_submit_start := Time.get_ticks_usec()
-		_draw_owned_cells(_get_visible_local_rect())
+		_draw_owned_cells(_get_visible_local_rect(), false)
 		_draw_map_outline()
 		_draw_debug_axis_lines()
 		_submit_ms = _elapsed_ms(hidden_submit_start)
@@ -184,7 +184,7 @@ func _draw() -> void:
 	_line_build_ms = _elapsed_ms(line_build_start)
 
 	var submit_start := Time.get_ticks_usec()
-	_draw_owned_cells(visible_rect)
+	_draw_owned_cells(visible_rect, true)
 	_draw_map_outline()
 	_draw_debug_axis_lines()
 	if _line_point_count > 0:
@@ -304,13 +304,13 @@ func _should_antialias_grid_lines() -> bool:
 	return grid_line_auto_antialias and _line_point_count <= grid_antialias_line_point_limit
 
 
-func _draw_owned_cells(visible_rect: Rect2) -> void:
+func _draw_owned_cells(visible_rect: Rect2, cull_against_view: bool) -> void:
 	if _owned_cells.is_empty() or _base_polygon.size() != 6:
 		return
 
 	for coord in _owned_cells.keys():
 		var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
-		if not _hex_rect_intersects_view(center, visible_rect):
+		if cull_against_view and not _hex_rect_intersects_view(center, visible_rect):
 			continue
 
 		var colony_id := int(_owned_cells[coord])

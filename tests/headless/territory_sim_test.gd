@@ -23,6 +23,7 @@ func _init() -> void:
 	_test_open_region_does_not_fill()
 	_test_contested_region_does_not_fill()
 	_test_normal_growth_skips_enclosure_scan()
+	_test_adaptive_enclosure_scan_cap_aborts_at_effective_limit()
 	_test_enclosure_scan_cap_aborts()
 	_test_sim_does_not_use_global_radius_scan()
 
@@ -329,6 +330,23 @@ func _test_normal_growth_skips_enclosure_scan() -> void:
 	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "normal line fills nothing")
 
 
+func _test_adaptive_enclosure_scan_cap_aborts_at_effective_limit() -> void:
+	var sim := _new_sim(80)
+	var placed_cell := Vector2i.ZERO
+	var owned: Array[Vector2i] = []
+	for direction_index in range(1, 6):
+		owned.append(HexGridMath.direction(direction_index))
+	_apply_owned_cells(sim, owned, owned[0], TerritorySim.UNDEFINED_DIRECTION)
+
+	sim._place_cell(sim.colonies[1], placed_cell, 0)
+
+	var metrics: Dictionary = sim.get_debug_metrics()
+	_assert_eq(metrics["enclosure_effective_scan_limit_last_step"], 50, "adaptive cap minimum")
+	_assert_eq(metrics["enclosure_visited_cells_last_step"], 50, "adaptive cap exact visited count")
+	_assert_eq(metrics["enclosure_aborted_regions_last_step"], 1, "adaptive cap aborts open region")
+	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "adaptive cap no fill")
+
+
 func _test_enclosure_scan_cap_aborts() -> void:
 	var sim := _new_sim(8)
 	sim.enclosure_scan_cell_limit = 0
@@ -344,6 +362,8 @@ func _test_enclosure_scan_cap_aborts() -> void:
 	var metrics: Dictionary = sim.get_debug_metrics()
 	_assert_eq(sim.get_owner_at(center), 0, "scan cap leaves region empty")
 	_assert_eq(metrics["enclosure_aborted_regions_last_step"] >= 1, true, "scan cap abort metric")
+	_assert_eq(metrics["enclosure_effective_scan_limit_last_step"], 0, "scan cap effective limit")
+	_assert_eq(metrics["enclosure_visited_cells_last_step"], 0, "zero scan cap visits no cells")
 	_assert_eq(metrics["enclosure_filled_cells_last_step"], 0, "scan cap no fill")
 
 

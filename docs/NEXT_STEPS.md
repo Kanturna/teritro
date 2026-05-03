@@ -5,22 +5,18 @@ every idea.
 
 ## Current Slice
 
-Slice 7 - Event-Local Enclosure Fill Prototype v0.1
+Slice 7.1 - Camera Redraw & Enclosure Cap Performance Patch v0.1
 
-## Slice 7 Exit Criteria
+## Slice 7.1 Exit Criteria
 
-- `docs/PLAN_SLICE_7.md` records the accepted reviewed plan.
-- Enclosure-fill is triggered only after real placements.
-- Enclosure scans only empty neighbor regions around the placed cell.
-- Ordinary line growth short-circuits without flood-fill.
-- Open, map-edge-connected, out-of-bounds, and contested regions remain
-  unfilled.
-- Auto-filled cells do not change `last_placed_cell`, placement direction, or
-  active `placements_total`.
-- Debug HUD exposes enclosure region count, visited cells, filled cells, aborts,
-  and timing.
-- Headless tests cover one-cell and multi-cell fills, open no-fill, contested
-  no-fill, scan cap, static no-global-scan guard, and placement semantics.
+- `docs/PLAN_SLICE_7_1.md` records the accepted reviewed plan.
+- Camera movement redraws the renderer only when the full cell grid is visible.
+- Owned cells are not view-culled in cached non-grid redraw paths.
+- Enclosure scans use the adaptive effective cap
+  `min(enclosure_scan_cell_limit, max(50, owned_cells / 2))`.
+- Enclosure scan cap is exact, not off by one.
+- Debug HUD exposes the effective enclosure scan limit.
+- Headless tests cover the redraw LOD matrix and adaptive cap behavior.
 - `git diff --check` passes.
 
 ## Branching
@@ -28,16 +24,24 @@ Slice 7 - Event-Local Enclosure Fill Prototype v0.1
 Use solo-main flow for now: code commits go directly to `main`. Re-evaluate if a
 second active developer joins or PR review becomes necessary.
 
-## Proposed Slice 8 - Expansion Behavior Review & Multi-Colony Prep v0.1
+## Proposed Slice 8 - Renderer And Enclosure Performance Architecture v0.1
 
-- Review Slice 6/7 re-anchor and enclosure metrics plus visual growth patterns
-  for clumping, weak map coverage, or too-aggressive fill.
+- Decide whether owned-cell rendering moves to MultiMesh, chunks, TileMapLayer,
+  or another batched rendering path before territories exceed about 500 cells.
+- Decide whether open/aborted enclosure regions need a known-open cache with
+  local invalidation.
+- Decide whether grid rendering needs a stricter LOD threshold or visible-cell
+  cap before zoom-out/grid-on views are product-relevant.
+- Re-evaluate stricter enclosure triggers or loop-detection if adaptive caps
+  hide legitimate enclosures.
+- Keep map radius `120` as a measured stress case only, not a new default.
+
+## Proposed Later Slice - Expansion Behavior Review & Multi-Colony Prep v0.1
+
+- Review Slice 6/7 re-anchor and enclosure metrics plus visual growth patterns.
 - Decide whether nearest re-anchor remains the deterministic baseline before
   AI-policy planning.
-- Consider map radius `120` only as a measured stress case, not a default.
 - Decide final contested enclosure semantics before multi-colony spawn.
-- Decide whether incremental frontier sets or enclosure caches are needed before
-  multi-colony behavior.
 
 ## Proposed Later Meta Slice - Tooling and Automation Plan
 

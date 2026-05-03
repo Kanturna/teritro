@@ -8,14 +8,13 @@ Phase 2 - Implementation
 
 ## Active Slice
 
-Slice 7 - Event-Local Enclosure Fill Prototype v0.1
+Slice 7.1 - Camera Redraw & Enclosure Cap Performance Patch v0.1
 
 ## Implemented (this slice)
 
-Added event-local enclosure-fill for the first one-colony prototype. After a
-real placement, the simulation can fill fully enclosed empty regions adjacent to
-that placed cell while leaving open, edge-connected, or contested regions
-unfilled. Added enclosure debug metrics, tests, and documentation.
+Added a focused performance patch after Slice 7. Camera movement no longer
+forces owned-cell redraws unless the full cell grid is visible, and enclosure
+scans now use an adaptive effective cap with debug visibility.
 
 `Implemented (this slice)` contains only the active slice. When the slice
 changes, remove old slice contents instead of growing this file into history.
@@ -30,6 +29,7 @@ changes, remove old slice contents instead of growing this file into history.
 - Incremental frontier-set maintenance.
 - Persistent enclosure caches or nested-enclosure policy.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
+- Grid LOD or visible-cell-cap refactor.
 - Renderer-specific rules documentation.
 - New documentation layout or plan-rules split.
 - Hooks, automations, feature branches, pushes, or PRs.
@@ -42,6 +42,7 @@ changes, remove old slice contents instead of growing this file into history.
 - AI action APIs and policy decisions.
 - Persistent frontier sets or map-radius stress work.
 - Persistent enclosure caches or nested-enclosure behavior.
+- Grid renderer refactor or new grid LOD policy.
 - New external assets or addons.
 - Renderer replacement through MultiMesh, TileMapLayer, shaders, or chunks.
 - New documentation layout or plan-rules split.
@@ -49,10 +50,10 @@ changes, remove old slice contents instead of growing this file into history.
 
 ## Validation
 
-Slice 7 changes runtime simulation behavior, HUD-visible debug metrics, tests,
-and documentation. Run the headless test suite, `git diff --check`, and a
-manual Godot editor check that closed regions fill, open regions stay empty,
-HUD enclosure metrics update, and `R` reset still works.
+Slice 7.1 changes renderer redraw behavior, enclosure scan limits, HUD-visible
+debug metrics, tests, and documentation. Run the headless test suite,
+`git diff --check`, and a manual Godot editor check that grid-off pan/zoom no
+longer clips territory and enclosure abort spikes are reduced.
 
 ## State Rule
 
