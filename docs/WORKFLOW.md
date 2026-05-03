@@ -35,6 +35,10 @@ should have one coherent purpose, a review path, and a validation path. Do not
 split coherent work into artificial micro-slices, and do not bundle unrelated
 work to reduce slice count.
 
+Plan-stated defaults, thresholds, limits, and gates are implementation
+constraints. Changing them needs explicit user instruction, a revised plan, or a
+documented mini-slice; do not silently drift them in code.
+
 ## Commit Suggestions
 
 Every completed slice needs a suggested commit. Do not create the commit unless

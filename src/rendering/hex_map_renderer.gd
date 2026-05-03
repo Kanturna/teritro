@@ -15,12 +15,12 @@ const HexGridMath = preload("res://src/core/hex/hex_grid_math.gd")
 @export var fill_color := Color.WHITE
 @export var outline_color := Color(0.0, 0.0, 0.0, 0.95)
 @export var axis_color := Color(0.0, 0.0, 0.0, 0.35)
-@export var simple_lod_zoom := 0.18
-@export var overview_lod_zoom := 0.1
+@export var simple_lod_zoom := 0.75
+@export var overview_lod_zoom := 0.5
 @export var grid_line_screen_width := 1.2
 @export var overview_line_screen_width := 1.5
 @export var map_outline_screen_width := 2.0
-@export var grid_line_antialiased := true
+@export var grid_line_antialiased := false
 @export var debug_axis_visible := false:
 	set(value):
 		debug_axis_visible = value
@@ -211,12 +211,12 @@ func _collect_visible_centers(bounds: Rect2i, visible_rect: Rect2) -> void:
 	var q_count := bounds.end.x - bounds.position.x + 1
 	var r_count := bounds.end.y - bounds.position.y + 1
 	var max_candidate_count := maxi(0, q_count * r_count)
+	_candidate_hex_count = max_candidate_count
 	_visible_centers.resize(max_candidate_count)
 
 	var visible_index := 0
 	for q in range(bounds.position.x, bounds.end.x + 1):
 		for r in range(bounds.position.y, bounds.end.y + 1):
-			_candidate_hex_count += 1
 			var coord := Vector2i(q, r)
 			var center: Vector2 = HexGridMath.axial_to_world(coord, hex_radius)
 			if not _is_inside_map(coord):

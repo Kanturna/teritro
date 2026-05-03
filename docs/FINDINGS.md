@@ -59,7 +59,7 @@ a loose backlog.
   switches.
 - Added HUD detail, debug-axis, culling, line-point, and 60-frame draw/frame
   metrics for manual renderer review.
-- Kept the full cell grid visible through the current minimum zoom to avoid a
-  blank white overview.
-- Kept the map outline visible when the cell grid is toggled off, so the lab
-  still has orientation on a white background.
+- Restored the planned LOD thresholds after full-grid rendering at minimum zoom
+  regressed draw time.
+- Kept the map outline visible when the cell grid is hidden by LOD or toggled
+  off, so the lab still has orientation on a white background.

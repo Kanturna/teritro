@@ -63,12 +63,12 @@ func _run() -> void:
 	_assert_eq(renderer.get_current_lod_mode(), "full", "default zoom LOD")
 
 	camera.zoom = Vector2.ONE * 0.6
-	_assert_eq(renderer.get_current_lod_mode(), "full", "mid zoom keeps full grid")
-	_assert_eq(renderer.will_draw_cell_grid(), true, "mid zoom keeps cell grid visible")
+	_assert_eq(renderer.get_current_lod_mode(), "simple", "mid zoom uses simple LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), false, "mid zoom hides cell grid by LOD")
 
 	camera.zoom = Vector2.ONE * 0.25
-	_assert_eq(renderer.get_current_lod_mode(), "full", "min zoom keeps full grid")
-	_assert_eq(renderer.will_draw_cell_grid(), true, "min zoom keeps cell grid visible")
+	_assert_eq(renderer.get_current_lod_mode(), "overview", "min zoom uses overview LOD")
+	_assert_eq(renderer.will_draw_cell_grid(), false, "min zoom hides cell grid by LOD")
 
 	if _failures.is_empty():
 		print("Hex debug metrics tests passed.")

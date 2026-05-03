@@ -109,6 +109,6 @@ metrics. DebugOverlay reads metrics through registered providers and does not
 own simulation truth.
 
 Re-evaluation trigger: Reassess the renderer before colony work if full-grid
-zoom 1.0 or 0.25 stays above 16 ms draw time, if line readability fails at
-normal zoom levels, if ownership colors require per-cell rendering, or if map
+zoom 1.0 stays above 16 ms draw time, if overview/simple LOD loses orientation
+or line readability, if ownership colors require per-cell rendering, or if map
 radius above 80 becomes a product requirement.
